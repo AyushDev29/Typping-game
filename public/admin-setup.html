@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Setup - Blind Typing Competition</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <div class="container">
+        <div class="auth-card">
+            <h1>🔧 Admin Setup Tool</h1>
+            <p class="subtitle">Quick setup for admin access</p>
+            
+            <div id="statusMessage" style="margin: 20px 0; padding: 15px; border-radius: 5px; display: none;"></div>
+            
+            <div class="form-section">
+                <h3>Step 1: Create Admin in Firestore</h3>
+                <div class="form-group">
+                    <label for="adminEmail">Admin Email</label>
+                    <input type="email" id="adminEmail" placeholder="admin@example.com" value="admin2006@gmail.com">
+                </div>
+                <button id="createAdminBtn" class="btn btn-primary">Create Admin in Database</button>
+            </div>
+            
+            <div class="form-section">
+                <h3>Step 2: Register/Login Admin User</h3>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="admin@example.com" value="admin2006@gmail.com">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter password">
+                </div>
+                <div class="button-group">
+                    <button id="registerBtn" class="btn btn-primary">Register Admin</button>
+                    <button id="loginBtn" class="btn btn-secondary">Login Admin</button>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h3>Step 3: Verify Setup</h3>
+                <button id="verifyBtn" class="btn btn-success">Verify Admin Setup</button>
+            </div>
+            
+            <div id="result" style="margin-top: 20px;"></div>
+            
+            <div style="margin-top: 30px; text-align: center;">
+                <a href="login.html" class="btn btn-secondary">Go to Login</a>
+                <a href="admin/dashboard.html" class="btn btn-primary">Go to Admin Dashboard</a>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, db } from './js/firebase.js';
+        import { registerUser, loginUser } from './js/auth.js';
+        import { collection, doc, setDoc, getDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        
+        const resultDiv = document.getElementById('result');
+        const statusDiv = document.getElementById('statusMessage');
+        
+        function showStatus(message, type = 'info') {
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = message;
+            statusDiv.style.background = type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#d1ecf1';
+            statusDiv.style.color = type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#0c5460';
+        }
+        
+        function showResult(message, type = 'info') {
+            resultDiv.innerHTML = `
+                <div style="background: ${type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#d1ecf1'}; 
+                           padding: 15px; border-radius: 5px; 
+                           color: ${type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#0c5460'};">
+                    ${message}
+                </div>
+            `;
+        }
+        
+        // Step 1: Create admin in Firestore
+        document.getElementById('createAdminBtn').addEventListener('click', async () => {
+            const adminEmail = document.getElementById('adminEmail').value.trim();
+            
+            if (!adminEmail) {
+                showResult('Please enter admin email', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('Creating admin in Firestore...');
+                
+                // Create admin document
+                const adminRef = doc(collection(db, 'admins'));
+                await setDoc(adminRef, {
+                    email: adminEmail
+                });
+                
+                showResult(`✅ Admin created successfully!<br><strong>Email:</strong> ${adminEmail}`, 'success');
+            } catch (error) {
+                console.error('Create admin error:', error);
+                showResult(`❌ Error creating admin: ${error.message}`, 'error');
+            }
+        });
+        
+        // Step 2: Register admin user
+        document.getElementById('registerBtn').addEventListener('click', async () => {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                showResult('Please enter email and password', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('Registering admin user...');
+                
+                const result = await registerUser(email, password);
+                
+                if (result.success) {
+                    showResult(`✅ Admin registered successfully!<br><strong>Email:</strong> ${result.user.email}<br><strong>Role:</strong> ${result.user.role}`, 'success');
+                } else {
+                    showResult(`❌ Registration failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Register error:', error);
+                showResult(`❌ Registration error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Step 2: Login admin user
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                showResult('Please enter email and password', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('Logging in admin user...');
+                
+                const result = await loginUser(email, password);
+                
+                if (result.success) {
+                    showResult(`✅ Admin logged in successfully!<br><strong>Email:</strong> ${result.user.email}<br><strong>Role:</strong> ${result.user.role}`, 'success');
+                } else {
+                    showResult(`❌ Login failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showResult(`❌ Login error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Step 3: Verify setup
+        document.getElementById('verifyBtn').addEventListener('click', async () => {
+            try {
+                showStatus('Verifying admin setup...');
+                
+                const email = document.getElementById('email').value.trim();
+                
+                // Check if admin exists in admins collection
+                const adminsRef = collection(db, 'admins');
+                const adminQuery = query(adminsRef, where('email', '==', email));
+                const adminSnapshot = await getDocs(adminQuery);
+                const adminExists = !adminSnapshot.empty;
+                
+                // Check if user exists in users collection
+                const currentUser = auth.currentUser;
+                let userExists = false;
+                let userRole = 'none';
+                
+                if (currentUser) {
+                    const userRef = doc(db, 'users', currentUser.uid);
+                    const userDoc = await getDoc(userRef);
+                    userExists = userDoc.exists();
+                    userRole = userDoc.exists() ? userDoc.data().role : 'none';
+                }
+                
+                const status = `
+                    <h4>🔍 Setup Verification Results:</h4>
+                    <p><strong>Admin in 'admins' collection:</strong> ${adminExists ? '✅ YES' : '❌ NO'}</p>
+                    <p><strong>User authenticated:</strong> ${currentUser ? '✅ YES' : '❌ NO'}</p>
+                    <p><strong>User in 'users' collection:</strong> ${userExists ? '✅ YES' : '❌ NO'}</p>
+                    <p><strong>User role:</strong> ${userRole}</p>
+                    <p><strong>Setup complete:</strong> ${adminExists && currentUser && userExists && userRole === 'admin' ? '✅ YES' : '❌ NO'}</p>
+                `;
+                
+                showResult(status, adminExists && currentUser && userExists && userRole === 'admin' ? 'success' : 'error');
+                
+            } catch (error) {
+                console.error('Verify error:', error);
+                showResult(`❌ Verification error: ${error.message}`, 'error');
+            }
+        });
+    </script>
+</body>
+</html>

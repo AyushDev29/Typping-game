@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room Control - Blind-Venture Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #050507;
+            --bg-card: rgba(12, 12, 18, 0.95);
+            --bg-elevated: #0f0f14;
+            --border-color: rgba(255, 255, 255, 0.06);
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+            --text-muted: #52525b;
+            --accent: #3B82F6;
+            --accent-glow: rgba(59, 130, 246, 0.25);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg-primary); color: var(--text-secondary); min-height: 100vh; }
+        .bg-grid { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-image: linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px); background-size: 60px 60px; pointer-events: none; }
+        .gradient-orb { position: fixed; border-radius: 50%; filter: blur(80px); opacity: 0.4; pointer-events: none; }
+        .orb-1 { width: 500px; height: 500px; background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%); top: -200px; right: -150px; }
+        .orb-2 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%); bottom: -100px; left: -100px; }
+        .navbar { position: fixed; top: 0; left: 0; right: 0; height: 72px; background: rgba(5, 5, 7, 0.9); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 48px; z-index: 100; backdrop-filter: blur(12px); }
+        .navbar-brand { font-size: 1.375rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .brand-icon { width: 36px; height: 36px; background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.125rem; }
+        .btn-back { background: var(--bg-elevated); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 10px 20px; border-radius: 10px; font-size: 0.875rem; font-weight: 500; text-decoration: none; transition: all 0.2s ease; }
+        .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+        .main-content { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 120px 32px 60px; }
+        .page-header { margin-bottom: 32px; }
+        .page-title { font-size: 2.25rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.03em; }
+        .page-title span { background: linear-gradient(135deg, var(--accent) 0%, #60a5fa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+</style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="gradient-orb orb-1"></div>
+    <div class="gradient-orb orb-2"></div>
+
+    <style>
+        .section-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; padding: 28px; margin-bottom: 24px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .section-title { font-size: 1.25rem; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 12px; }
+        .section-icon { width: 40px; height: 40px; background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+        
+        /* Room Info */
+        .room-info-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; padding: 28px; margin-bottom: 24px; }
+        .room-info-card h2 { font-size: 1.5rem; font-weight: 700; color: var(--accent); margin-bottom: 16px; }
+        .room-info-card p { margin: 8px 0; color: var(--text-secondary); }
+        .room-info-card strong { color: var(--text-muted); }
+        .room-code { font-family: 'JetBrains Mono', monospace; background: rgba(255, 255, 255, 0.08); color: #ffffff; padding: 4px 12px; border-radius: 6px; font-weight: 600; border: 1px solid rgba(255, 255, 255, 0.1); }
+        .locked-badge { background: var(--error); color: white; padding: 4px 12px; border-radius: 100px; font-size: 0.75rem; font-weight: 600; margin-left: 12px; }
+        .state-badge { display: inline-block; padding: 6px 14px; border-radius: 100px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        .state-waiting { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .state-active { background: rgba(59, 130, 246, 0.15); color: var(--accent); }
+        .state-completed { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        
+        /* Info Banner */
+        .info-banner { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-left: 4px solid var(--accent); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; display: flex; gap: 16px; }
+        .info-banner .icon { font-size: 1.5rem; }
+        .info-banner h4 { color: var(--accent); margin-bottom: 8px; font-size: 1rem; }
+        .info-banner p { color: var(--text-secondary); font-size: 0.875rem; margin: 4px 0; }
+        
+        /* Participants */
+        .participants-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+        .participant-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 12px; }
+        .participant-name { font-weight: 600; color: var(--text-primary); font-size: 0.9375rem; }
+        .participant-status { padding: 4px 10px; border-radius: 100px; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
+        .status-waiting { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .status-active { background: rgba(59, 130, 246, 0.15); color: var(--accent); }
+        .status-qualified { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .status-eliminated { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+        
+        /* Round Controls */
+        .rounds-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .round-card { background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; text-align: center; }
+        .round-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .round-header h3 { color: var(--accent); font-size: 1.125rem; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 24px; border: none; border-radius: 12px; font-size: 0.9375rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; text-decoration: none; width: 100%; }
+        .btn-primary { background: linear-gradient(135deg, var(--accent) 0%, #2563eb 100%); color: white; box-shadow: 0 4px 20px var(--accent-glow); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(59, 130, 246, 0.35); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-danger { background: transparent; border: 1px solid var(--error); color: var(--error); }
+        .btn-danger:hover { background: var(--error); color: white; }
+
+        /* Leaderboard */
+        .leaderboard-controls { display: flex; gap: 12px; align-items: center; }
+        .round-select { background: var(--bg-elevated); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 16px; border-radius: 10px; font-size: 0.875rem; cursor: pointer; outline: none; }
+        .round-select:focus { border-color: var(--accent); }
+        .table-container { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border-color); }
+        .leaderboard-table { width: 100%; border-collapse: collapse; }
+        .leaderboard-table th { background: var(--bg-elevated); color: var(--text-secondary); padding: 14px 16px; text-align: left; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .leaderboard-table td { padding: 14px 16px; border-top: 1px solid var(--border-color); color: var(--text-secondary); }
+        .leaderboard-table tr:hover { background: rgba(59, 130, 246, 0.05); }
+        .qualified-row { background: rgba(16, 185, 129, 0.05); }
+        .eliminated-row { background: rgba(239, 68, 68, 0.03); }
+        
+        /* Danger Zone */
+        .danger-zone { background: rgba(239, 68, 68, 0.05); border: 2px solid rgba(239, 68, 68, 0.2); border-radius: 16px; padding: 24px; margin-top: 24px; }
+        .danger-zone h2 { color: var(--error); font-size: 1.125rem; margin-bottom: 12px; }
+        .danger-zone p { color: var(--text-muted); margin-bottom: 20px; font-size: 0.9375rem; }
+        .danger-zone .btn-danger { width: auto; }
+        
+        .loading-state { text-align: center; padding: 40px; color: var(--text-muted); }
+        .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--border-color); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 12px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        @media (max-width: 900px) {
+            .navbar { padding: 0 20px; }
+            .main-content { padding: 100px 16px 40px; }
+            .rounds-grid { grid-template-columns: 1fr; }
+            .participants-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+
+    <nav class="navbar">
+        <a href="../index.html" class="navbar-brand"><div class="brand-icon">⌨</div>Blind-Venture</a>
+        <a href="dashboard.html" class="btn-back">← Dashboard</a>
+    </nav>
+
+    <div class="main-content">
+        <div class="page-header"><h1 class="page-title">Room <span>Control</span></h1></div>
+
+        <div id="roomInfo" class="room-info-card">
+            <h2 id="roomName">Loading...</h2>
+            <p><strong>Room Code:</strong> <span id="roomCode" class="room-code"></span> <span id="lockedBadge" class="locked-badge" style="display: none;">🔒 Entry Locked</span></p>
+            <p><strong>State:</strong> <span id="roomState" class="state-badge">-</span></p>
+            <p><strong>Current Round:</strong> <span id="currentRound">0</span></p>
+        </div>
+
+        <div class="info-banner">
+            <div class="icon">ℹ️</div>
+            <div>
+                <h4>Automatic Round Management</h4>
+                <p>Rounds end automatically when the timer expires. You only need to <strong>start</strong> each round.</p>
+                <p>⚠️ Once Round 1 starts, <strong>no new participants can join</strong> the room.</p>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <div class="section-header"><h2 class="section-title"><div class="section-icon">👥</div>Participants (<span id="participantCount">0</span>)</h2></div>
+            <div id="participantsList" class="participants-grid"><div class="loading-state"><div class="loading-spinner"></div><p>Loading...</p></div></div>
+        </div>
+
+        <div class="section-card">
+            <div class="section-header"><h2 class="section-title"><div class="section-icon">🎯</div>Round Control</h2></div>
+            <div id="roundControls" class="rounds-grid">
+                <div class="round-card"><div class="round-header"><h3>Round 1</h3><span id="r1State" class="state-badge state-waiting">Waiting</span></div><button id="startR1" class="btn btn-primary" onclick="handleStartRound(1)">Start Round 1</button></div>
+                <div class="round-card"><div class="round-header"><h3>Round 2</h3><span id="r2State" class="state-badge state-waiting">Waiting</span></div><button id="startR2" class="btn btn-primary" onclick="handleStartRound(2)" disabled>Start Round 2</button></div>
+                <div class="round-card"><div class="round-header"><h3>Round 3</h3><span id="r3State" class="state-badge state-waiting">Waiting</span></div><button id="startR3" class="btn btn-primary" onclick="handleStartRound(3)" disabled>Start Round 3</button></div>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <div class="section-header">
+                <h2 class="section-title"><div class="section-icon">📊</div>Leaderboard</h2>
+                <div class="leaderboard-controls">
+                    <select id="leaderboardRoundSelect" class="round-select"><option value="1">Round 1</option><option value="2">Round 2</option><option value="3">Round 3</option></select>
+                    <button class="btn btn-danger" onclick="handleClearRound()" style="width:auto;padding:10px 16px;">🗑️ Clear</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="leaderboard-table">
+                    <thead><tr><th>Rank</th><th>Name</th><th>WPM</th><th>Accuracy</th><th>Score</th><th>Status</th></tr></thead>
+                    <tbody id="leaderboardBody"><tr><td colspan="6" style="text-align:center;padding:40px;">No results yet</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="danger-zone">
+            <h2>⚠️ Danger Zone</h2>
+            <p>These actions are irreversible. Use with caution.</p>
+            <button class="btn btn-danger" onclick="handleCompleteRoom()" style="margin-right: 12px;">✅ Mark as Completed</button>
+            <button class="btn btn-danger" onclick="handleDeleteRoom()">🗑️ Delete Entire Room</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { getCurrentUser, logoutUser } from '../js/auth.js';
+        import { getRoomData, getRoomConfig, listenToRoom, listenToParticipants } from '../js/room.js';
+        import { startRound, getLeaderboard, listenToLeaderboard, deleteRoom, clearRoundResults } from '../js/admin.js';
+        
+        const user = getCurrentUser();
+        if (!user) { window.location.href = '../login.html'; }
+        else if (user.role !== 'admin') { window.location.href = '../join-room.html'; }
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('roomId') || sessionStorage.getItem('roomId');
+        if (!roomId) { alert('Room ID not found'); window.location.href = 'dashboard.html'; }
+        sessionStorage.setItem('roomId', roomId);
+        
+        let roomData = null, roomConfig = null, unsubscribeRoom = null, unsubscribeParticipants = null, unsubscribeLeaderboard = null, currentLeaderboardRound = 1;
+        
+        async function loadRoomData() {
+            roomData = await getRoomData(roomId);
+            roomConfig = await getRoomConfig(roomId);
+            if (!roomData || !roomConfig) { alert('Room not found'); window.location.href = 'dashboard.html'; return; }
+            updateRoomInfo();
+            updateRoundControls();
+        }
+        
+        function updateRoomInfo() {
+            document.getElementById('roomName').textContent = roomData.roomName || 'Untitled Room';
+            document.getElementById('roomCode').textContent = roomData.roomCode;
+            document.getElementById('currentRound').textContent = roomData.currentRound || 0;
+            const status = roomData.status || roomData.roundStatus || 'waiting';
+            const isLocked = (roomData.currentRound || 0) >= 1 || status !== 'waiting';
+            document.getElementById('lockedBadge').style.display = isLocked ? 'inline' : 'none';
+            const stateEl = document.getElementById('roomState');
+            stateEl.textContent = status;
+            stateEl.className = 'state-badge';
+            if (status.includes('waiting') || status === 'waiting') stateEl.classList.add('state-waiting');
+            else if (status === 'completed') stateEl.classList.add('state-completed');
+            else stateEl.classList.add('state-active');
+        }
+        
+        function updateRoundControls() {
+            const status = roomData.status || roomData.roundStatus || 'waiting';
+            for (let i = 1; i <= 3; i++) {
+                document.getElementById(`startR${i}`).disabled = true;
+                document.getElementById(`r${i}State`).textContent = 'Waiting';
+                document.getElementById(`r${i}State`).className = 'state-badge state-waiting';
+            }
+            if (status === 'waiting') document.getElementById('startR1').disabled = false;
+            else if (status === 'round1') { document.getElementById('r1State').textContent = 'Active'; document.getElementById('r1State').className = 'state-badge state-active'; }
+            else if (status.startsWith('round1_') || status === 'round2_waiting') { document.getElementById('r1State').textContent = 'Complete'; document.getElementById('r1State').className = 'state-badge state-completed'; if (status === 'round2_waiting') document.getElementById('startR2').disabled = false; }
+            else if (status === 'round2') { document.getElementById('r1State').textContent = 'Complete'; document.getElementById('r1State').className = 'state-badge state-completed'; document.getElementById('r2State').textContent = 'Active'; document.getElementById('r2State').className = 'state-badge state-active'; }
+            else if (status.startsWith('round2_') || status === 'round3_waiting') { document.getElementById('r1State').textContent = 'Complete'; document.getElementById('r1State').className = 'state-badge state-completed'; document.getElementById('r2State').textContent = 'Complete'; document.getElementById('r2State').className = 'state-badge state-completed'; if (status === 'round3_waiting') document.getElementById('startR3').disabled = false; }
+            else if (status === 'round3') { for (let i = 1; i <= 2; i++) { document.getElementById(`r${i}State`).textContent = 'Complete'; document.getElementById(`r${i}State`).className = 'state-badge state-completed'; } document.getElementById('r3State').textContent = 'Active'; document.getElementById('r3State').className = 'state-badge state-active'; }
+            else if (status === 'completed' || status.startsWith('round3_')) { for (let i = 1; i <= 3; i++) { document.getElementById(`r${i}State`).textContent = 'Complete'; document.getElementById(`r${i}State`).className = 'state-badge state-completed'; } }
+        }
+        
+        window.handleStartRound = async function(roundNumber) {
+            if (!confirm(`Start Round ${roundNumber}?\n\n⚠️ Once started, no new participants can join!`)) return;
+            const btn = document.getElementById(`startR${roundNumber}`);
+            btn.disabled = true; btn.textContent = 'Starting...';
+            const result = await startRound(roomId, roundNumber);
+            if (!result.success) { alert('Failed: ' + result.error); btn.disabled = false; btn.textContent = `Start Round ${roundNumber}`; }
+        };
+        
+        window.handleClearRound = async function() {
+            if (!confirm(`⚠️ Delete all results for Round ${currentLeaderboardRound}?`)) return;
+            const result = await clearRoundResults(roomId, currentLeaderboardRound);
+            if (result.success) { alert(`✅ Deleted ${result.deleted} results`); loadLeaderboard(currentLeaderboardRound); }
+            else alert('Failed: ' + result.error);
+        };
+        
+        window.handleDeleteRoom = async function() {
+            if (!confirm(`⚠️ DELETE ENTIRE ROOM?\n\nThis will permanently delete all data!`)) return;
+            const result = await deleteRoom(roomId);
+            if (result.success) { alert('✅ Room deleted!'); window.location.href = 'dashboard.html'; }
+            else alert('Failed: ' + result.error);
+        };
+        
+        window.handleCompleteRoom = async function() {
+            if (!confirm(`Mark this room as COMPLETED?\n\nThis will move the room to the completed list.`)) return;
+            try {
+                const { doc, updateDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                const roomRef = doc(db, 'rooms', roomId);
+                await updateDoc(roomRef, {
+                    status: 'completed',
+                    roundStatus: 'completed',
+                    lastUpdated: serverTimestamp()
+                });
+                alert('✅ Room marked as completed!');
+            } catch (error) {
+                alert('Failed: ' + error.message);
+            }
+        };
+        
+        async function loadLeaderboard(roundNumber) {
+            const leaderboard = await getLeaderboard(roomId, roundNumber);
+            const tbody = document.getElementById('leaderboardBody');
+            if (leaderboard.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">No results yet</td></tr>'; return; }
+            const qualifyCount = roomConfig?.rounds?.[`r${roundNumber}`]?.qualifyCount || 3;
+            leaderboard.sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0));
+            tbody.innerHTML = leaderboard.map((entry, index) => {
+                const rank = index + 1, isQualified = rank <= qualifyCount;
+                const statusBadge = isQualified ? '<span style="color:#34d399;font-weight:600;">✓ Qualified</span>' : '<span style="color:#f87171;font-weight:600;">✗ Eliminated</span>';
+                return `<tr class="${isQualified ? 'qualified-row' : 'eliminated-row'}"><td><strong>#${rank}</strong></td><td>${entry.name || 'Unknown'}</td><td>${(entry.wpm || 0).toFixed(2)}</td><td>${(entry.accuracy || 0).toFixed(2)}%</td><td>${(entry.finalScore || 0).toFixed(2)}</td><td>${statusBadge}</td></tr>`;
+            }).join('');
+        }
+        
+        unsubscribeRoom = listenToRoom(roomId, (data) => { roomData = data; updateRoomInfo(); updateRoundControls(); });
+        unsubscribeParticipants = listenToParticipants(roomId, (participants) => {
+            document.getElementById('participantCount').textContent = participants.length;
+            const list = document.getElementById('participantsList');
+            if (participants.length === 0) { list.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">No participants yet</p>'; return; }
+            list.innerHTML = participants.map(p => `<div class="participant-item"><span class="participant-name">${p.name}</span><span class="participant-status status-${p.status}">${p.status}</span></div>`).join('');
+        });
+        document.getElementById('leaderboardRoundSelect').addEventListener('change', (e) => { currentLeaderboardRound = parseInt(e.target.value); loadLeaderboard(currentLeaderboardRound); });
+        loadRoomData();
+        loadLeaderboard(1);
+        window.addEventListener('beforeunload', () => { if (unsubscribeRoom) unsubscribeRoom(); if (unsubscribeParticipants) unsubscribeParticipants(); if (unsubscribeLeaderboard) unsubscribeLeaderboard(); });
+    </script>
+</body>
+</html>

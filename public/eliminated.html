@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eliminated - Blind-Venture</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #050507;
+            --bg-card: rgba(12, 12, 18, 0.95);
+            --bg-elevated: #0f0f14;
+            --border-color: rgba(255, 255, 255, 0.06);
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+            --text-muted: #52525b;
+            --accent: #3B82F6;
+            --accent-glow: rgba(59, 130, 246, 0.25);
+            --error: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-secondary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .bg-grid {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .gradient-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.4;
+            pointer-events: none;
+        }
+        .orb-1 {
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.15) 0%, transparent 70%);
+            top: -100px; right: -100px;
+        }
+        .orb-2 {
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            bottom: -50px; left: -50px;
+        }
+
+        .eliminated-card {
+            position: relative;
+            z-index: 1;
+            max-width: 520px;
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 28px;
+            padding: 56px 48px;
+            text-align: center;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+            animation: slideIn 0.5s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .eliminated-icon {
+            font-size: 5rem;
+            margin-bottom: 24px;
+            animation: shake 0.5s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .eliminated-card h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--error);
+            margin-bottom: 16px;
+            letter-spacing: -0.02em;
+        }
+
+        .eliminated-message {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            margin: 24px 0;
+        }
+        .eliminated-message p {
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin: 8px 0;
+        }
+        .eliminated-message strong { color: var(--text-primary); }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 28px 0;
+        }
+        .stat-box {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 20px 16px;
+        }
+        .stat-box .label {
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+        }
+        .stat-box .value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .thank-you {
+            color: var(--text-muted);
+            font-size: 1rem;
+            margin: 28px 0;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 24px;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 28px;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent) 0%, #2563eb 100%);
+            color: white;
+            box-shadow: 0 8px 30px var(--accent-glow);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(59, 130, 246, 0.35); }
+        .btn-secondary {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+        .secondary-actions {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-color);
+        }
+        .btn-logout {
+            background: transparent;
+            border: 1px solid var(--error);
+            color: var(--error);
+            padding: 12px 24px;
+        }
+        .btn-logout:hover { background: var(--error); color: white; }
+
+        @media (max-width: 540px) {
+            .eliminated-card { padding: 40px 24px; border-radius: 24px; }
+            .eliminated-card h1 { font-size: 1.5rem; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .button-group { flex-direction: column; }
+            .btn { width: 100%; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="gradient-orb orb-1"></div>
+    <div class="gradient-orb orb-2"></div>
+
+    <div class="eliminated-card">
+        <div class="eliminated-icon">😔</div>
+        <h1>You Have Been Eliminated</h1>
+        <div class="eliminated-message">
+            <p>Unfortunately, you did not qualify for the next round.</p>
+            <p id="eliminationRoundText">You were eliminated in <strong>Round 1</strong>.</p>
+        </div>
+        <div id="eliminationStats" class="stats-grid" style="display: none;">
+            <div class="stat-box"><div class="label">Your Rank</div><div class="value" id="yourRank">-</div></div>
+            <div class="stat-box"><div class="label">Your Score</div><div class="value" id="yourScore">-</div></div>
+            <div class="stat-box"><div class="label">Cutoff</div><div class="value" id="cutoffRank">-</div></div>
+        </div>
+        <p class="thank-you">Thank you for participating in the Blind Typing Competition!</p>
+        <div class="button-group">
+            <button onclick="viewLeaderboard()" class="btn btn-primary">View Leaderboard</button>
+            <button onclick="exitGame()" class="btn btn-secondary">Exit Game</button>
+        </div>
+        <div class="secondary-actions">
+            <button onclick="handleLogout()" class="btn btn-logout">Logout</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { getCurrentUser, logoutUser, exitGame } from './js/auth.js';
+        import { db } from './js/firebase.js';
+        import { doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        
+        const user = getCurrentUser();
+        if (!user) { window.location.href = 'login.html'; }
+        const roomId = sessionStorage.getItem('roomId');
+        let eliminationRound = 1;
+        
+        async function loadEliminationData() {
+            if (!roomId) { window.location.href = 'join-room.html'; return; }
+            try {
+                const participantRef = doc(db, 'participants', user.uid);
+                const participantDoc = await getDoc(participantRef);
+                if (!participantDoc.exists()) { window.location.href = 'join-room.html'; return; }
+                const data = participantDoc.data();
+                if (!data.isEliminated && data.status !== 'eliminated') { window.location.href = 'typing.html'; return; }
+                eliminationRound = data.eliminatedInRound || data.currentRound || 1;
+                document.getElementById('eliminationRoundText').innerHTML = `You were eliminated in <strong>Round ${eliminationRound}</strong>.`;
+                await loadUserScore(eliminationRound);
+            } catch (error) { console.error('Error:', error); }
+        }
+        
+        async function loadUserScore(roundNumber) {
+            try {
+                const resultsRef = collection(db, 'results');
+                const q = query(resultsRef, where('roomId', '==', roomId), where('round', '==', roundNumber), where('userId', '==', user.uid));
+                const snapshot = await getDocs(q);
+                if (!snapshot.empty) {
+                    const result = snapshot.docs[0].data();
+                    const allResultsQuery = query(resultsRef, where('roomId', '==', roomId), where('round', '==', roundNumber));
+                    const allResultsSnapshot = await getDocs(allResultsQuery);
+                    let allResults = [];
+                    allResultsSnapshot.forEach(d => allResults.push(d.data()));
+                    allResults.sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0));
+                    const userRank = allResults.findIndex(r => r.userId === user.uid) + 1;
+                    const configRef = doc(db, 'roomConfig', roomId);
+                    const configDoc = await getDoc(configRef);
+                    let qualifyCount = 3;
+                    if (configDoc.exists()) qualifyCount = configDoc.data().rounds?.[`r${roundNumber}`]?.qualifyCount || 3;
+                    document.getElementById('eliminationStats').style.display = 'grid';
+                    document.getElementById('yourRank').textContent = `#${userRank}`;
+                    document.getElementById('yourScore').textContent = (result.finalScore || 0).toFixed(1);
+                    document.getElementById('cutoffRank').textContent = `Top ${qualifyCount}`;
+                }
+            } catch (error) { console.error('Error:', error); }
+        }
+        
+        window.viewLeaderboard = function() { sessionStorage.setItem('showEliminationRound', eliminationRound.toString()); window.location.href = 'leaderboard.html'; };
+        window.exitGame = function() { exitGame(); };
+        window.handleLogout = function() { logoutUser(); };
+        loadEliminationData();
+    </script>
+</body>
+</html>

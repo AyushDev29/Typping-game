@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Room - Blind-Venture Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #050507;
+            --bg-card: rgba(12, 12, 18, 0.95);
+            --bg-elevated: #0f0f14;
+            --bg-input: rgba(20, 20, 30, 0.8);
+            --border-color: rgba(255, 255, 255, 0.06);
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+            --text-muted: #52525b;
+            --accent: #3B82F6;
+            --accent-glow: rgba(59, 130, 246, 0.25);
+            --success: #10b981;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-secondary);
+            min-height: 100vh;
+        }
+
+        .bg-grid {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+        }
+
+        .gradient-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.4;
+            pointer-events: none;
+        }
+        .orb-1 { width: 500px; height: 500px; background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%); top: -200px; right: -150px; }
+        .orb-2 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%); bottom: -100px; left: -100px; }
+
+        /* Navbar */
+        .navbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 72px;
+            background: rgba(5, 5, 7, 0.9);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 48px;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+        .navbar-brand {
+            font-size: 1.375rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+        .brand-icon {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.125rem;
+        }
+        .btn-back {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="gradient-orb orb-1"></div>
+    <div class="gradient-orb orb-2"></div>
+
+    <style>
+        .main-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 120px 32px 60px;
+        }
+
+        .page-header { margin-bottom: 40px; }
+        .page-title {
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: -0.03em;
+            margin-bottom: 8px;
+        }
+        .page-title span {
+            background: linear-gradient(135deg, var(--accent) 0%, #60a5fa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .page-subtitle { color: var(--text-muted); font-size: 1.0625rem; }
+
+        /* Form Card */
+        .form-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+        }
+
+        .form-section {
+            margin-bottom: 40px;
+            padding-bottom: 32px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .form-section:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .round-badge {
+            background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%);
+            color: #050507;
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .form-group { margin-bottom: 24px; }
+        .form-group label {
+            display: block;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 16px 18px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 1rem;
+            color: var(--text-primary);
+            font-family: inherit;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+        .form-group input::placeholder, .form-group textarea::placeholder { color: var(--text-muted); }
+        .form-group input:focus, .form-group textarea:focus {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.05);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+        }
+        .form-group textarea { resize: vertical; min-height: 120px; }
+        .form-group small { display: block; color: var(--text-muted); font-size: 0.8125rem; margin-top: 8px; }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .error-message::before { content: '⚠'; }
+
+        .form-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-color);
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 32px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent) 0%, #2563eb 100%);
+            color: white;
+            box-shadow: 0 8px 30px var(--accent-glow);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(59, 130, 246, 0.35); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-secondary {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Success Card */
+        .success-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 56px 40px;
+            text-align: center;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+        }
+        .success-icon { font-size: 5rem; margin-bottom: 24px; }
+        .success-card h3 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--success);
+            margin-bottom: 32px;
+        }
+        .room-code-display {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px 40px;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .room-code-display .label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+        }
+        .room-code-display .code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--accent);
+            letter-spacing: 0.15em;
+        }
+        .success-card .hint { color: var(--text-muted); margin-bottom: 32px; }
+        .success-card .button-group { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+
+        @media (max-width: 768px) {
+            .navbar { padding: 0 20px; }
+            .main-content { padding: 100px 16px 40px; }
+            .page-title { font-size: 1.75rem; }
+            .form-card { padding: 28px 20px; }
+            .form-row { grid-template-columns: 1fr; }
+            .form-actions { flex-direction: column; }
+            .btn { width: 100%; justify-content: center; }
+        }
+    </style>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <a href="../index.html" class="navbar-brand">
+            <div class="brand-icon">⌨</div>
+            Blind-Venture
+        </a>
+        <a href="dashboard.html" class="btn-back">← Back to Dashboard</a>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">Create <span>New Room</span></h1>
+            <p class="page-subtitle">Set up a new typing competition with custom rounds</p>
+        </div>
+
+        <form id="createRoomForm" class="form-card">
+            <div class="form-section">
+                <h2 class="section-title">🏠 Room Information</h2>
+                <div class="form-group">
+                    <label for="roomName">Room Name</label>
+                    <input type="text" id="roomName" name="roomName" required placeholder="Enter room name">
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-title"><span class="round-badge">R1</span> Round 1 Configuration</h2>
+                <div class="form-group">
+                    <label for="r1Paragraph">Paragraph</label>
+                    <textarea id="r1Paragraph" name="r1Paragraph" required rows="4" placeholder="Enter the paragraph for Round 1"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="r1Time">Time (seconds)</label>
+                        <input type="number" id="r1Time" name="r1Time" required min="30" value="60">
+                    </div>
+                    <div class="form-group">
+                        <label for="r1QualifyCount">Qualify Count</label>
+                        <input type="number" id="r1QualifyCount" name="r1QualifyCount" required min="1" value="20">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-title"><span class="round-badge">R2</span> Round 2 Configuration</h2>
+                <div class="form-group">
+                    <label for="r2Paragraph">Paragraph</label>
+                    <textarea id="r2Paragraph" name="r2Paragraph" required rows="4" placeholder="Enter the paragraph for Round 2"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="r2Time">Time (seconds)</label>
+                        <input type="number" id="r2Time" name="r2Time" required min="30" value="60">
+                    </div>
+                    <div class="form-group">
+                        <label for="r2QualifyCount">Qualify Count</label>
+                        <input type="number" id="r2QualifyCount" name="r2QualifyCount" required min="1" value="3">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-title"><span class="round-badge">R3</span> Round 3 Configuration (Final)</h2>
+                <div class="form-group">
+                    <label for="r3Paragraph">Paragraph</label>
+                    <textarea id="r3Paragraph" name="r3Paragraph" required rows="4" placeholder="Enter the paragraph for Round 3"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="r3Time">Time (seconds)</label>
+                        <input type="number" id="r3Time" name="r3Time" required min="30" value="60">
+                    </div>
+                    <div class="form-group">
+                        <label for="r3QualifyCount">Qualify Count (Winners)</label>
+                        <input type="number" id="r3QualifyCount" name="r3QualifyCount" required min="1" value="3">
+                        <small>Number of winners to declare (Top 3 recommended)</small>
+                    </div>
+                </div>
+            </div>
+
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Create Room</button>
+                <a href="dashboard.html" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+
+        <div id="successMessage" class="success-card" style="display: none;">
+            <div class="success-icon">✅</div>
+            <h3>Room Created Successfully!</h3>
+            <div class="room-code-display">
+                <span class="label">Room Code</span>
+                <span class="code" id="createdRoomCode"></span>
+            </div>
+            <p class="hint">Share this code with participants to join the room.</p>
+            <div class="button-group">
+                <a href="room-control.html" id="manageRoomLink" class="btn btn-primary">Manage Room</a>
+                <a href="dashboard.html" class="btn btn-secondary">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { getCurrentUser } from '../js/auth.js';
+        import { createRoom } from '../js/room.js';
+        
+        const user = getCurrentUser();
+        if (!user) { window.location.href = '../login.html'; }
+        else if (user.role !== 'admin') { window.location.href = '../join-room.html'; }
+        
+        document.getElementById('createRoomForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.style.display = 'none';
+            
+            const roomName = document.getElementById('roomName').value.trim();
+            const rounds = {
+                r1: { paragraph: document.getElementById('r1Paragraph').value.trim(), time: parseInt(document.getElementById('r1Time').value), qualifyCount: parseInt(document.getElementById('r1QualifyCount').value) },
+                r2: { paragraph: document.getElementById('r2Paragraph').value.trim(), time: parseInt(document.getElementById('r2Time').value), qualifyCount: parseInt(document.getElementById('r2QualifyCount').value) },
+                r3: { paragraph: document.getElementById('r3Paragraph').value.trim(), time: parseInt(document.getElementById('r3Time').value), qualifyCount: parseInt(document.getElementById('r3QualifyCount').value) }
+            };
+            
+            if (!roomName) { errorMessage.textContent = 'Please enter a room name'; errorMessage.style.display = 'flex'; return; }
+            for (let i = 1; i <= 3; i++) {
+                const round = rounds[`r${i}`];
+                if (!round.paragraph) { errorMessage.textContent = `Please enter paragraph for Round ${i}`; errorMessage.style.display = 'flex'; return; }
+                if (round.time < 30) { errorMessage.textContent = `Time for Round ${i} must be at least 30 seconds`; errorMessage.style.display = 'flex'; return; }
+            }
+            
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Creating...';
+            submitBtn.disabled = true;
+            
+            try {
+                const result = await createRoom({ roomName, rounds, userId: user.uid });
+                if (result.success) {
+                    document.getElementById('createRoomForm').style.display = 'none';
+                    document.getElementById('successMessage').style.display = 'block';
+                    document.getElementById('createdRoomCode').textContent = result.roomCode;
+                    document.getElementById('manageRoomLink').href = `room-control.html?roomId=${result.roomId}`;
+                    sessionStorage.setItem('roomId', result.roomId);
+                    sessionStorage.setItem('roomCode', result.roomCode);
+                } else {
+                    errorMessage.textContent = result.error || 'Failed to create room';
+                    errorMessage.style.display = 'flex';
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                errorMessage.textContent = 'An unexpected error occurred';
+                errorMessage.style.display = 'flex';
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

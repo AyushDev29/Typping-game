@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Room - Blind-Venture</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #050507;
+            --bg-secondary: #08080c;
+            --bg-card: rgba(12, 12, 18, 0.9);
+            --bg-input: rgba(15, 15, 22, 0.9);
+            --border-color: rgba(255, 255, 255, 0.06);
+            --border-highlight: rgba(59, 130, 246, 0.4);
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+            --text-muted: #52525b;
+            --accent: #3B82F6;
+            --accent-hover: #2563EB;
+            --accent-glow: rgba(59, 130, 246, 0.2);
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-secondary);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        /* Background */
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Floating Elements */
+        .floating-element {
+            position: fixed;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-radius: 12px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .float-1 {
+            width: 80px;
+            height: 80px;
+            top: 15%;
+            left: 10%;
+            animation: float-rotate 20s linear infinite;
+        }
+
+        .float-2 {
+            width: 60px;
+            height: 60px;
+            top: 70%;
+            right: 15%;
+            animation: float-rotate 25s linear infinite reverse;
+        }
+
+        .float-3 {
+            width: 100px;
+            height: 100px;
+            bottom: 20%;
+            left: 20%;
+            border-radius: 50%;
+            animation: float-rotate 30s linear infinite;
+        }
+
+        @keyframes float-rotate {
+            0% { transform: rotate(0deg) translateY(0); }
+            25% { transform: rotate(90deg) translateY(-20px); }
+            50% { transform: rotate(180deg) translateY(0); }
+            75% { transform: rotate(270deg) translateY(20px); }
+            100% { transform: rotate(360deg) translateY(0); }
+        }
+
+        /* Main Container */
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 520px;
+        }
+
+        /* Header */
+        .page-header {
+            text-align: center;
+            margin-bottom: 32px;
+            animation: fadeDown 0.5s ease-out;
+        }
+
+        @keyframes fadeDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 100px;
+            font-size: 0.8125rem;
+            color: var(--accent);
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+
+        .badge-pulse {
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            font-size: 1rem;
+            color: var(--text-muted);
+        }
+
+        /* Auth Card */
+        .auth-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 
+                0 0 0 1px rgba(255, 255, 255, 0.03),
+                0 30px 80px rgba(0, 0, 0, 0.5);
+            animation: cardAppear 0.6s ease-out 0.1s both;
+        }
+
+        @keyframes cardAppear {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Form Sections */
+        .form-section {
+            margin-bottom: 32px;
+        }
+
+        .section-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 16px;
+        }
+
+        .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-color);
+        }
+
+        .section-icon {
+            font-size: 1rem;
+        }
+
+        /* Form Group */
+        .form-group {
+            margin-bottom: 0;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 18px 20px;
+            background: var(--bg-input);
+            border: 2px solid var(--border-color);
+            border-radius: 14px;
+            font-size: 1rem;
+            color: var(--text-primary);
+            font-family: inherit;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .form-group input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-group input:focus {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.03);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+        }
+
+        /* Room Code Special Styling */
+        .room-code-section {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.02) 100%);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+
+        .room-code-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .room-code-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            box-shadow: 0 8px 24px var(--accent-glow);
+        }
+
+        .room-code-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .room-code-desc {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+        }
+
+        #roomCode {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-align: center;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            padding: 20px;
+            background: var(--bg-primary);
+            border: 2px dashed rgba(59, 130, 246, 0.3);
+        }
+
+        #roomCode:focus {
+            border-style: solid;
+            border-color: var(--accent);
+        }
+
+        #roomCode::placeholder {
+            letter-spacing: 0.1em;
+            font-size: 1rem;
+        }
+
+        /* Error Message */
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: shake 0.4s ease;
+        }
+
+        .error-message::before {
+            content: '⚠';
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 18px 28px;
+            border: none;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent) 0%, #2563eb 100%);
+            color: var(--text-primary);
+            box-shadow: 0 8px 30px var(--accent-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(59, 130, 246, 0.35);
+        }
+
+        .btn-primary:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            padding: 14px 24px;
+            font-size: 0.9375rem;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-secondary);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Footer Actions */
+        .card-footer {
+            margin-top: 28px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Tips Section */
+        .tips-section {
+            margin-top: 32px;
+            animation: fadeUp 0.5s ease-out 0.3s both;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .tips-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .tip-item {
+            text-align: center;
+            padding: 20px 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .tip-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .tip-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .tip-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            body {
+                padding: 16px;
+            }
+
+            .page-title {
+                font-size: 1.625rem;
+            }
+
+            .auth-card {
+                padding: 28px 20px;
+                border-radius: 20px;
+            }
+
+            .room-code-section {
+                padding: 20px 16px;
+            }
+
+            #roomCode {
+                font-size: 1.25rem;
+                letter-spacing: 0.2em;
+                padding: 16px;
+            }
+
+            .tips-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .tip-item {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                text-align: left;
+                padding: 16px;
+            }
+
+            .tip-icon {
+                margin-bottom: 0;
+                font-size: 1.25rem;
+            }
+
+            .btn {
+                padding: 16px 24px;
+            }
+
+            .floating-element {
+                display: none;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .auth-card {
+                padding: 24px 16px;
+            }
+
+            .room-code-section {
+                padding: 16px 12px;
+            }
+
+            #roomCode {
+                font-size: 1.125rem;
+            }
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background -->
+    <div class="bg-pattern"></div>
+    <div class="floating-element float-1"></div>
+    <div class="floating-element float-2"></div>
+    <div class="floating-element float-3"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="header-badge">
+                <span class="badge-pulse"></span>
+                Live Competition
+            </div>
+            <h1 class="page-title">Join Competition Room</h1>
+            <p class="page-subtitle">Enter your details to join the typing battle</p>
+        </div>
+
+        <!-- Main Card -->
+        <div class="auth-card">
+            <form id="joinRoomForm">
+                <!-- Player Identity Section -->
+                <div class="form-section">
+                    <div class="section-label">
+                        <span class="section-icon">👤</span>
+                        Player Identity
+                    </div>
+                    <div class="form-group">
+                        <label for="userName">Your Name</label>
+                        <input type="text" id="userName" name="userName" required placeholder="Enter your display name">
+                    </div>
+                </div>
+
+                <!-- Room Code Section -->
+                <div class="room-code-section">
+                    <div class="room-code-header">
+                        <div class="room-code-icon">🔑</div>
+                        <div>
+                            <div class="room-code-title">Room Access Code</div>
+                            <div class="room-code-desc">6-character code from your admin</div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" id="roomCode" name="roomCode" required placeholder="XXXXXX" maxlength="6" style="text-transform: uppercase;">
+                    </div>
+                </div>
+                
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+                
+                <button type="submit" class="btn btn-primary btn-block">
+                    Enter Competition
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </button>
+            </form>
+            
+            <div class="card-footer">
+                <button onclick="logoutUser()" class="btn btn-secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    Sign Out
+                </button>
+            </div>
+        </div>
+
+        <!-- Tips Section -->
+        <div class="tips-section">
+            <div class="tips-grid">
+                <div class="tip-item">
+                    <div class="tip-icon">⏱️</div>
+                    <div class="tip-text">Be ready when the round starts</div>
+                </div>
+                <div class="tip-item">
+                    <div class="tip-icon">🎯</div>
+                    <div class="tip-text">Accuracy matters more than speed</div>
+                </div>
+                <div class="tip-item">
+                    <div class="tip-icon">🧘</div>
+                    <div class="tip-text">Stay calm under pressure</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Scripts - UNCHANGED -->
+    <script type="module">
+        import { getCurrentUser, logoutUser } from './js/auth.js';
+        import { joinRoom } from './js/room.js';
+        
+        // Check authentication
+        const user = getCurrentUser();
+        if (!user) {
+            window.location.href = 'login.html';
+        } else if (user.role === 'admin') {
+            window.location.href = 'admin/dashboard.html';
+        }
+        
+        // Make logoutUser available globally
+        window.logoutUser = logoutUser;
+        
+        // Auto-uppercase room code
+        document.getElementById('roomCode').addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase();
+        });
+        
+        // Handle join room form
+        document.getElementById('joinRoomForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const userName = document.getElementById('userName').value.trim();
+            const roomCode = document.getElementById('roomCode').value.trim().toUpperCase();
+            const errorMessage = document.getElementById('errorMessage');
+            
+            // Clear previous errors
+            errorMessage.style.display = 'none';
+            
+            if (!userName) {
+                errorMessage.textContent = 'Please enter your name';
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            if (roomCode.length !== 6) {
+                errorMessage.textContent = 'Room code must be 6 characters';
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            // Show loading state
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Joining...';
+            submitBtn.disabled = true;
+            
+            try {
+                const result = await joinRoom(roomCode, user.uid, userName);
+                
+                if (result.success) {
+                    // Redirect to waiting/typing page
+                    window.location.href = 'typing.html';
+                } else {
+                    errorMessage.textContent = result.error || 'Failed to join room';
+                    errorMessage.style.display = 'block';
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                errorMessage.textContent = 'An unexpected error occurred';
+                errorMessage.style.display = 'block';
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

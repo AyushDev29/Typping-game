@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - Blind-Venture Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-primary: #050507; --bg-card: rgba(12, 12, 18, 0.95); --bg-elevated: #0f0f14; --bg-input: rgba(20, 20, 30, 0.8); --border-color: rgba(255, 255, 255, 0.06); --text-primary: #ffffff; --text-secondary: #a1a1aa; --text-muted: #52525b; --accent: #3B82F6; --accent-glow: rgba(59, 130, 246, 0.25); --success: #10b981; --warning: #f59e0b; --error: #ef4444; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg-primary); color: var(--text-secondary); min-height: 100vh; }
+        .bg-grid { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-image: linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px); background-size: 60px 60px; pointer-events: none; }
+        .gradient-orb { position: fixed; border-radius: 50%; filter: blur(80px); opacity: 0.4; pointer-events: none; width: 500px; height: 500px; background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%); top: -200px; right: -150px; }
+        .navbar { position: fixed; top: 0; left: 0; right: 0; height: 72px; background: rgba(5, 5, 7, 0.9); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 48px; z-index: 100; backdrop-filter: blur(12px); }
+        .navbar-brand { font-size: 1.375rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .brand-icon { width: 36px; height: 36px; background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.125rem; }
+        .navbar-actions { display: flex; gap: 12px; }
+        .btn-back { background: var(--bg-elevated); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 10px 20px; border-radius: 10px; font-size: 0.875rem; font-weight: 500; text-decoration: none; transition: all 0.2s ease; }
+        .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-logout { background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); padding: 10px 20px; border-radius: 10px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease; }
+        .btn-logout:hover { border-color: var(--error); color: var(--error); }
+        .main-content { position: relative; z-index: 1; max-width: 1000px; margin: 0 auto; padding: 120px 32px 60px; }
+        .page-header { margin-bottom: 32px; }
+        .page-title { font-size: 2.25rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.03em; }
+        .page-title span { background: linear-gradient(135deg, var(--accent) 0%, #60a5fa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+</style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="gradient-orb"></div>
+
+    <style>
+        .section-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; padding: 28px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+        .section-title { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }
+        .search-input { background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 14px 18px; border-radius: 12px; font-size: 0.9375rem; width: 300px; max-width: 100%; outline: none; transition: all 0.2s ease; }
+        .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-glow); }
+        .search-input::placeholder { color: var(--text-muted); }
+        
+        .users-list { display: flex; flex-direction: column; gap: 16px; }
+        .user-card { display: flex; justify-content: space-between; align-items: center; padding: 24px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 16px; transition: all 0.2s ease; }
+        .user-card:hover { border-color: var(--accent); }
+        .user-info h3 { font-size: 1.125rem; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+        .user-info p { margin: 4px 0; color: var(--text-secondary); font-size: 0.875rem; }
+        .user-info strong { color: var(--text-muted); }
+        .role-badge { display: inline-block; padding: 4px 12px; border-radius: 100px; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
+        .role-admin { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .role-participant { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        
+        .user-actions { text-align: center; }
+        .user-actions label { display: block; margin-bottom: 10px; font-weight: 600; color: var(--text-secondary); font-size: 0.8125rem; }
+        .role-select { background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 16px; border-radius: 10px; font-size: 0.875rem; cursor: pointer; outline: none; transition: all 0.2s ease; }
+        .role-select:focus { border-color: var(--accent); }
+        .role-note { font-size: 0.6875rem; color: var(--text-muted); font-style: italic; margin-top: 8px; }
+        
+        .loading-state { text-align: center; padding: 60px; color: var(--text-muted); }
+        .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--border-color); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 12px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-state { text-align: center; padding: 60px; color: var(--text-muted); }
+        
+        @media (max-width: 768px) {
+            .navbar { padding: 0 20px; }
+            .main-content { padding: 100px 16px 40px; }
+            .section-header { flex-direction: column; text-align: center; }
+            .search-input { width: 100%; }
+            .user-card { flex-direction: column; gap: 20px; text-align: center; }
+        }
+    </style>
+
+    <nav class="navbar">
+        <a href="../index.html" class="navbar-brand"><div class="brand-icon">⌨</div>Blind-Venture</a>
+        <div class="navbar-actions">
+            <a href="dashboard.html" class="btn-back">← Dashboard</a>
+            <button onclick="logoutUser()" class="btn-logout">Logout</button>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <div class="page-header"><h1 class="page-title">User <span>Management</span></h1></div>
+
+        <div class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">👥 All Users</h2>
+                <input type="text" id="searchUsers" class="search-input" placeholder="Search by email or name...">
+            </div>
+            <div id="usersList" class="users-list">
+                <div class="loading-state"><div class="loading-spinner"></div><p>Loading users...</p></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { getCurrentUser, logoutUser, getAllUsers, updateUserRole } from '../js/auth.js';
+        
+        const user = getCurrentUser();
+        if (!user) { window.location.href = '../login.html'; }
+        else if (user.role !== 'admin') { window.location.href = '../join-room.html'; }
+        
+        window.logoutUser = logoutUser;
+        
+        let allUsers = [];
+        
+        async function loadUsers() {
+            try {
+                allUsers = await getAllUsers();
+                displayUsers(allUsers);
+            } catch (error) {
+                console.error('Load users error:', error);
+                document.getElementById('usersList').innerHTML = '<div class="empty-state" style="color:#ef4444;">Error loading users</div>';
+            }
+        }
+        
+        function displayUsers(users) {
+            const usersList = document.getElementById('usersList');
+            if (users.length === 0) { usersList.innerHTML = '<div class="empty-state">No users found</div>'; return; }
+            
+            usersList.innerHTML = users.map(user => {
+                const createdAt = user.createdAt ? new Date(user.createdAt.toDate()).toLocaleDateString() : 'N/A';
+                const lastLogin = user.lastLoginAt ? new Date(user.lastLoginAt.toDate()).toLocaleString() : 'Never';
+                return `
+                    <div class="user-card">
+                        <div class="user-info">
+                            <h3>${user.name || user.email}</h3>
+                            <p><strong>Email:</strong> ${user.email}</p>
+                            <p><strong>Role:</strong> <span class="role-badge role-${user.role || 'participant'}">${(user.role || 'participant').toUpperCase()}</span></p>
+                            <p><strong>Created:</strong> ${createdAt}</p>
+                            <p><strong>Last Login:</strong> ${lastLogin}</p>
+                            <p><strong>Login Count:</strong> ${user.loginCount || 0}</p>
+                        </div>
+                        <div class="user-actions">
+                            <label for="roleSelect_${user.uid}">Change Role:</label>
+                            <select id="roleSelect_${user.uid}" class="role-select" onchange="changeUserRole('${user.uid}', this.value)">
+                                <option value="participant" ${(user.role || 'participant') === 'participant' ? 'selected' : ''}>Participant</option>
+                                <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                            </select>
+                            <p class="role-note">Changes take effect on next login</p>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+        
+        window.changeUserRole = async function(userId, newRole) {
+            if (!confirm(`Change user role to ${newRole}? This will take effect on their next login.`)) {
+                const user = allUsers.find(u => u.uid === userId);
+                if (user) document.getElementById(`roleSelect_${userId}`).value = user.role || 'participant';
+                return;
+            }
+            try {
+                const result = await updateUserRole(userId, newRole);
+                if (result.success) {
+                    alert('User role updated successfully!');
+                    const userIndex = allUsers.findIndex(u => u.uid === userId);
+                    if (userIndex !== -1) { allUsers[userIndex].role = newRole; displayUsers(allUsers); }
+                } else {
+                    alert('Failed to update role: ' + result.error);
+                    const user = allUsers.find(u => u.uid === userId);
+                    if (user) document.getElementById(`roleSelect_${userId}`).value = user.role || 'participant';
+                }
+            } catch (error) {
+                alert('Error updating role: ' + error.message);
+                const user = allUsers.find(u => u.uid === userId);
+                if (user) document.getElementById(`roleSelect_${userId}`).value = user.role || 'participant';
+            }
+        };
+        
+        document.getElementById('searchUsers').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filtered = allUsers.filter(user => user.email.toLowerCase().includes(searchTerm) || (user.name && user.name.toLowerCase().includes(searchTerm)));
+            displayUsers(filtered);
+        });
+        
+        loadUsers();
+    </script>
+</body>
+</html>

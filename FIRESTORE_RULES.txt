@@ -1,0 +1,85 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - users can read all, create/update their own
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null;
+    }
+    
+    // Admins collection - read only for authenticated users
+    match /admins/{adminId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only manually add admins through Firebase Console
+    }
+    
+    // Rooms - admins can create, all authenticated users can read and update
+    match /rooms/{roomId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+    
+    // Room config - admins can write, all authenticated users can read
+    match /roomConfig/{roomId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+    
+    // Participants - users can read/write their own, admins can read all
+    // Fields: name, roomId, status, currentRound, isEliminated, eliminatedInRound, isQualified, isWinnerEligible
+    match /participants/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+    
+    // Results - stored per round, not combined
+    // Fields: userId, roomId, round, userName, wpm, accuracy, finalScore, submittedAt
+    match /results/{resultId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if false; // Results are immutable
+      allow delete: if request.auth != null;
+    }
+  }
+}
+
+/*
+COMPETITION WORKFLOW:
+
+1. STATE MACHINE:
+   waiting → round1 → round1_result → round1_leaderboard →
+   round2_waiting → round2 → round2_result → round2_leaderboard →
+   round3_waiting → round3 → round3_result → round3_leaderboard → completed
+
+2. PARTICIPANT STATUS:
+   - waiting: Initial state
+   - active: Currently in a round
+   - qualified: Passed current round
+   - eliminated: Out of competition
+
+3. PARTICIPANT FIELDS:
+   - name: Display name
+   - roomId: Current room
+   - status: waiting/active/qualified/eliminated
+   - currentRound: Last round participated in
+   - isEliminated: Boolean flag
+   - eliminatedInRound: Round number where eliminated (1, 2, or 3)
+   - isQualified: Boolean flag
+   - isWinnerEligible: Only true for Round 3 finishers
+
+4. WINNER DETERMINATION:
+   - Only Round 3 participants are eligible
+   - Winner is determined by Round 3 scores ONLY
+   - No cumulative scoring across rounds
+
+5. LEADERBOARDS:
+   - Round leaderboard shows ONLY that round's participants
+   - Final leaderboard shows ONLY Round 3 players
+*/
