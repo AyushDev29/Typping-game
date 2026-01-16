@@ -14,7 +14,7 @@ A competitive multiplayer blind typing game with 3 elimination rounds. Built wit
 
 ## 🚀 Live Demo
 
-- **Firebase Hosting**: [https://blind-typing-1.web.app](https://blind-typing-1.web.app)
+- **Firebase Hosting**: [https://blind-typing-1.firebaseapp.com](https://blind-typing-1.firebaseapp.com)
 
 ## 📋 Prerequisites
 
