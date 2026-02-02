@@ -207,10 +207,10 @@
 
     <div class="eliminated-card">
         <div class="eliminated-icon">😔</div>
-        <h1>You Have Been Eliminated</h1>
+        <h1>Competition Complete</h1>
         <div class="eliminated-message">
-            <p>Unfortunately, you did not qualify for the next round.</p>
-            <p id="eliminationRoundText">You were eliminated in <strong>Round 1</strong>.</p>
+            <p>Unfortunately, you did not place in the top positions.</p>
+            <p id="eliminationRoundText">Thank you for participating in the <strong>Blind Typing Competition</strong>.</p>
         </div>
         <div id="eliminationStats" class="stats-grid" style="display: none;">
             <div class="stat-box"><div class="label">Your Rank</div><div class="value" id="yourRank">-</div></div>
@@ -244,21 +244,42 @@
                 const participantDoc = await getDoc(participantRef);
                 if (!participantDoc.exists()) { window.location.href = 'join-room.html'; return; }
                 const data = participantDoc.data();
-                if (!data.isEliminated && data.status !== 'eliminated') { window.location.href = 'typing.html'; return; }
-                eliminationRound = data.eliminatedInRound || data.currentRound || 1;
-                document.getElementById('eliminationRoundText').innerHTML = `You were eliminated in <strong>Round ${eliminationRound}</strong>.`;
-                await loadUserScore(eliminationRound);
+                
+                // Check if user is qualified or eliminated
+                if (data.status === 'qualified') {
+                    // User is qualified - show success message
+                    document.querySelector('.eliminated-icon').textContent = '🎉';
+                    document.querySelector('h1').textContent = 'Congratulations!';
+                    document.querySelector('.eliminated-message').innerHTML = `
+                        <p>🎉 <strong>You have qualified for Round 2!</strong></p>
+                        <p>You will receive instructions for Round 2 separately.</p>
+                        <p>Thank you for participating in Round 1 of the <strong>Blind Typing Competition</strong>.</p>
+                    `;
+                } else if (data.status === 'eliminated') {
+                    // User is eliminated - show elimination message
+                    document.querySelector('.eliminated-message').innerHTML = `
+                        <p>Unfortunately, you did not qualify for Round 2.</p>
+                        <p>Thank you for participating in the <strong>Blind Typing Competition</strong>.</p>
+                    `;
+                } else if (data.status === 'completed') {
+                    // Competition completed - show completion message
+                    document.querySelector('.eliminated-message').innerHTML = `
+                        <p>Thank you for participating in the <strong>Blind Typing Competition</strong>.</p>
+                    `;
+                }
+                
+                await loadUserScore();
             } catch (error) { console.error('Error:', error); }
         }
         
-        async function loadUserScore(roundNumber) {
+        async function loadUserScore() {
             try {
                 const resultsRef = collection(db, 'results');
-                const q = query(resultsRef, where('roomId', '==', roomId), where('round', '==', roundNumber), where('userId', '==', user.uid));
+                const q = query(resultsRef, where('roomId', '==', roomId), where('round', '==', 1), where('userId', '==', user.uid));
                 const snapshot = await getDocs(q);
                 if (!snapshot.empty) {
                     const result = snapshot.docs[0].data();
-                    const allResultsQuery = query(resultsRef, where('roomId', '==', roomId), where('round', '==', roundNumber));
+                    const allResultsQuery = query(resultsRef, where('roomId', '==', roomId), where('round', '==', 1));
                     const allResultsSnapshot = await getDocs(allResultsQuery);
                     let allResults = [];
                     allResultsSnapshot.forEach(d => allResults.push(d.data()));
@@ -267,7 +288,7 @@
                     const configRef = doc(db, 'roomConfig', roomId);
                     const configDoc = await getDoc(configRef);
                     let qualifyCount = 3;
-                    if (configDoc.exists()) qualifyCount = configDoc.data().rounds?.[`r${roundNumber}`]?.qualifyCount || 3;
+                    if (configDoc.exists()) qualifyCount = configDoc.data().rounds?.r1?.qualifyCount || 3;
                     document.getElementById('eliminationStats').style.display = 'grid';
                     document.getElementById('yourRank').textContent = `#${userRank}`;
                     document.getElementById('yourScore').textContent = (result.finalScore || 0).toFixed(1);
@@ -276,7 +297,7 @@
             } catch (error) { console.error('Error:', error); }
         }
         
-        window.viewLeaderboard = function() { sessionStorage.setItem('showEliminationRound', eliminationRound.toString()); window.location.href = 'leaderboard.html'; };
+        window.viewLeaderboard = function() { window.location.href = 'leaderboard.html'; };
         window.exitGame = function() { exitGame(); };
         window.handleLogout = function() { logoutUser(); };
         loadEliminationData();

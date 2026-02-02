@@ -53,9 +53,7 @@ export async function getRoomStatistics(roomId) {
     
     const results = [];
     const roundStats = {
-      r1: { total: 0, avgWPM: 0, avgAccuracy: 0, avgScore: 0 },
-      r2: { total: 0, avgWPM: 0, avgAccuracy: 0, avgScore: 0 },
-      r3: { total: 0, avgWPM: 0, avgAccuracy: 0, avgScore: 0 }
+      r1: { total: 0, avgWPM: 0, avgAccuracy: 0, avgScore: 0 }
     };
     
     resultsSnapshot.forEach(doc => {
@@ -87,8 +85,7 @@ export async function getRoomStatistics(roomId) {
     const statusCounts = {
       waiting: 0,
       active: 0,
-      qualified: 0,
-      eliminated: 0
+      completed: 0
     };
     
     participants.forEach(p => {
@@ -249,9 +246,7 @@ export async function getOverallStatistics() {
 export async function getCompleteLeaderboard(roomId) {
   try {
     const leaderboard = {
-      r1: [],
-      r2: [],
-      r3: []
+      r1: []
     };
     
     // Get participants for names

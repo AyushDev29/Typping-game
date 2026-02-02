@@ -270,7 +270,6 @@ export function exitGame() {
   // Clear room-related session storage only
   sessionStorage.removeItem('roomId');
   sessionStorage.removeItem('roomCode');
-  sessionStorage.removeItem('showEliminationRound');
   
   // Clear localStorage submission data
   const keysToRemove = [];

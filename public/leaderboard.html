@@ -367,13 +367,6 @@
             <div class="brand-icon">⌨</div>
             Blind-Venture
         </a>
-        <div class="navbar-actions">
-            <select id="roundSelect" class="round-select">
-                <option value="1">Round 1</option>
-                <option value="2">Round 2</option>
-                <option value="3">Round 3 (Final)</option>
-            </select>
-        </div>
     </nav>
 
     <!-- Main Content -->
@@ -383,8 +376,8 @@
         </div>
 
         <div id="roundInfoBanner" class="round-banner">
-            <h3 id="roundTitle">Round 1 Results</h3>
-            <p id="roundDescription">Showing all participants who competed in Round 1</p>
+            <h3 id="roundTitle">Competition Results</h3>
+            <p id="roundDescription">Final results from the blind typing competition</p>
         </div>
 
         <!-- Winner Podium (Round 3 only) -->
@@ -423,7 +416,7 @@
         import { getCurrentUser, logoutUser, exitGame } from './js/auth.js';
         import { getRoundLeaderboard } from './js/roomState.js';
         import { db } from './js/firebase.js';
-        import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { doc, getDoc, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         
         const user = getCurrentUser();
         if (!user) { window.location.href = 'login.html'; }
@@ -459,76 +452,69 @@
             podium.innerHTML = html;
         }
         
-        async function loadLeaderboard(roundNumber) {
-            currentRound = roundNumber;
+        async function loadLeaderboard() {
+            console.log('[Leaderboard] Loading leaderboard...');
             const banner = document.getElementById('roundInfoBanner');
             const title = document.getElementById('roundTitle');
             const desc = document.getElementById('roundDescription');
             const podiumSection = document.getElementById('winnerPodiumSection');
             
-            if (roundNumber === 3) {
-                banner.className = 'round-banner final';
-                title.textContent = '🏆 Final Round Results';
-                desc.textContent = 'Winner determined by Round 3 scores. Only Round 3 participants shown.';
-            } else {
-                banner.className = 'round-banner';
-                title.textContent = `Round ${roundNumber} Results`;
-                desc.textContent = `Showing all participants who competed in Round ${roundNumber}`;
-                podiumSection.style.display = 'none';
-            }
+            banner.className = 'round-banner final';
+            title.textContent = '🏆 Competition Results';
+            desc.textContent = 'Final results from the blind typing competition';
             
             let qualifyCount = 3;
-            if (roomConfig?.rounds?.[`r${roundNumber}`]) qualifyCount = roomConfig.rounds[`r${roundNumber}`].qualifyCount;
-            const leaderboard = await getRoundLeaderboard(roomId, roundNumber);
-            if (roundNumber === 3) displayWinnerPodium(leaderboard);
-            displayLeaderboard(leaderboard, qualifyCount, roundNumber);
+            if (roomConfig?.rounds?.r1) qualifyCount = roomConfig.rounds.r1.qualifyCount;
+            
+            console.log('[Leaderboard] Getting leaderboard for room:', roomId);
+            const leaderboard = await getRoundLeaderboard(roomId, 1);
+            console.log('[Leaderboard] Received leaderboard:', leaderboard);
+            
+            displayWinnerPodium(leaderboard);
+            displayLeaderboard(leaderboard, qualifyCount);
         }
         
-        function displayLeaderboard(leaderboard, qualifyCount, roundNumber) {
+        function displayLeaderboard(leaderboard, qualifyCount) {
             const tbody = document.getElementById('leaderboardBody');
-            if (leaderboard.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">No results for this round yet</td></tr>'; return; }
+            if (leaderboard.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">No results yet</td></tr>'; return; }
             let html = '';
             leaderboard.forEach((entry, index) => {
                 const rank = index + 1;
                 const isCurrentUser = entry.userId === user.uid;
                 const isQualified = rank <= qualifyCount;
-                const isTop3 = roundNumber === 3 && rank <= 3;
                 let rowClass = isCurrentUser ? 'current-user-row ' : '';
-                rowClass += isQualified ? 'qualified-row' : 'eliminated-row';
+                rowClass += isQualified ? 'qualified-row' : '';
                 let statusHtml = '';
-                if (roundNumber === 3) {
-                    if (rank === 1) statusHtml = '<span class="winner-badge">🏆 WINNER</span>';
-                    else if (rank === 2) statusHtml = '<span class="place-badge silver">🥈 2nd</span>';
-                    else if (rank === 3) statusHtml = '<span class="place-badge bronze">🥉 3rd</span>';
-                    else statusHtml = '<span class="status-qualified">✅ Finalist</span>';
-                } else {
-                    statusHtml = isQualified ? '<span class="status-qualified">✅ Qualified</span>' : '<span class="status-eliminated">❌ Eliminated</span>';
-                }
+                if (rank === 1) statusHtml = '<span class="winner-badge">🏆 WINNER</span>';
+                else if (rank === 2) statusHtml = '<span class="place-badge silver">🥈 2nd</span>';
+                else if (rank === 3) statusHtml = '<span class="place-badge bronze">🥉 3rd</span>';
+                else if (isQualified) statusHtml = '<span class="status-qualified">✅ Qualified for Round 2</span>';
+                else statusHtml = '<span class="status-eliminated">❌ Eliminated</span>';
                 let nameDisplay = entry.name || 'Unknown';
                 if (isCurrentUser) nameDisplay = `👤 ${nameDisplay} (You)`;
-                if (isTop3) { const medals = ['🥇', '🥈', '🥉']; nameDisplay = `${medals[rank-1]} ${nameDisplay}`; }
-                html += `<tr class="${rowClass}"><td><strong>#${rank}</strong></td><td>${nameDisplay}</td><td>${(entry.wpm || 0).toFixed(1)}</td><td>${(entry.accuracy || 0).toFixed(1)}%</td><td>${(entry.finalScore || 0).toFixed(2)}</td><td>${statusHtml}</td></tr>`;
+                if (rank <= 3) { const medals = ['🥇', '🥈', '🥉']; nameDisplay = `${medals[rank-1]} ${nameDisplay}`; }
+                const wpm = entry.netWpm || entry.wpm || 0;
+                html += `<tr class="${rowClass}"><td><strong>#${rank}</strong></td><td>${nameDisplay}</td><td>${wpm.toFixed(1)}</td><td>${(entry.accuracy || 0).toFixed(1)}%</td><td>${(entry.finalScore || 0).toFixed(2)}</td><td>${statusHtml}</td></tr>`;
             });
             tbody.innerHTML = html;
         }
         
-        document.getElementById('roundSelect').addEventListener('change', (e) => { loadLeaderboard(parseInt(e.target.value)); });
         window.exitGame = function() { exitGame(); };
         window.handleLogout = function() { logoutUser(); };
         
         async function init() {
             await loadRoomConfig();
-            const showRound = sessionStorage.getItem('showEliminationRound');
-            if (showRound) { currentRound = parseInt(showRound); document.getElementById('roundSelect').value = currentRound; sessionStorage.removeItem('showEliminationRound'); }
-            try {
-                const roomRef = doc(db, 'rooms', roomId);
-                const roomDoc = await getDoc(roomRef);
-                if (roomDoc.exists()) {
-                    const roomData = roomDoc.data();
-                    if (roomData.status === 'completed' || roomData.status?.includes('round3')) { currentRound = 3; document.getElementById('roundSelect').value = 3; }
-                }
-            } catch (e) {}
-            await loadLeaderboard(currentRound);
+            await loadLeaderboard();
+            
+            // Add real-time listener for leaderboard updates
+            const resultsRef = collection(db, 'results');
+            const resultsQuery = query(resultsRef, where('roomId', '==', roomId), where('round', '==', 1));
+            onSnapshot(resultsQuery, (snapshot) => {
+                console.log('[Leaderboard] Results updated, refreshing leaderboard');
+                loadLeaderboard();
+            }, (error) => {
+                console.error('[Leaderboard] Results listener error:', error);
+            });
         }
         init();
     </script>

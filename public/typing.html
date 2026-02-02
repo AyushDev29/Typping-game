@@ -86,8 +86,15 @@
             to { transform: rotate(360deg); }
         }
 
-        .screen { display: none; }
-        .screen.active { display: block; animation: fadeInUp 0.4s ease-out; }
+        .screen { 
+            display: none; 
+            width: 100%;
+            height: 100%;
+        }
+        .screen.active { 
+            display: block; 
+            animation: fadeInUp 0.4s ease-out; 
+        }
 
         .game-container {
             position: relative;
@@ -687,14 +694,22 @@
         import { 
             getRoundFromState, getScreenFromState,
             transitionToResult, transitionToLeaderboard, transitionToNextWaiting,
-            calculateEliminations, getRoundLeaderboard, TIMEOUTS, listenToRoomState
+            calculateResults, getRoundLeaderboard, TIMEOUTS, listenToRoomState
         } from './js/roomState.js';
         
         const user = getCurrentUser();
-        if (!user) { window.location.href = 'login.html'; }
+        console.log('[TypingGame] Current user:', user);
+        if (!user) { 
+            console.error('[TypingGame] No user found, redirecting to login');
+            window.location.href = 'login.html'; 
+        }
         
         const roomId = sessionStorage.getItem('roomId');
-        if (!roomId) { window.location.href = 'join-room.html'; }
+        console.log('[TypingGame] Room ID:', roomId);
+        if (!roomId) { 
+            console.error('[TypingGame] No room ID found, redirecting to join room');
+            window.location.href = 'join-room.html'; 
+        }
         
         let roomConfig = null, currentRound = 0, qualifyCount = 0, hasSubmitted = false;
         let savedScore = null, timerInterval = null, countdownInterval = null;
@@ -706,10 +721,21 @@
         window.handleLogout = logoutUser;
         
         function showScreen(screenId) {
+            console.log('[TypingGame] Showing screen:', screenId);
             if (currentScreen === screenId) return;
             currentScreen = screenId;
+            
+            // Hide all screens
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(screenId)?.classList.add('active');
+            
+            // Show target screen
+            const targetScreen = document.getElementById(screenId);
+            if (targetScreen) {
+                targetScreen.classList.add('active');
+                console.log('[TypingGame] Screen shown successfully:', screenId);
+            } else {
+                console.error('[TypingGame] Screen not found:', screenId);
+            }
         }
         
         function clearAllIntervals() {
@@ -741,19 +767,6 @@
         }
         
         async function handleTyping(roundNumber) {
-            // CRITICAL: Check if user is eliminated before allowing typing
-            const participantRef = doc(db, 'participants', user.uid);
-            const participantSnap = await getDoc(participantRef);
-            if (participantSnap.exists()) {
-                const data = participantSnap.data();
-                if (data.isEliminated || data.status === 'eliminated') {
-                    console.log('[Typing] User is eliminated, redirecting...');
-                    sessionStorage.setItem('showEliminationRound', data.eliminatedInRound || data.currentRound || 1);
-                    window.location.href = 'eliminated.html';
-                    return;
-                }
-            }
-            
             if (hasSubmitted && currentRound === roundNumber) {
                 const result = await checkExistingResult(roundNumber);
                 if (result.exists) { savedScore = result.score; handleResult(roundNumber, savedScore); }
@@ -765,7 +778,7 @@
             currentRound = roundNumber;
             hasSubmitted = false;
             if (!roomConfig) roomConfig = await getRoomConfig(roomId);
-            const roundData = roomConfig?.rounds?.[`r${roundNumber}`];
+            const roundData = roomConfig?.rounds?.r1;
             if (!roundData) return;
             
             qualifyCount = roundData.qualifyCount;
@@ -824,17 +837,23 @@
             stopTyping();
             const typedText = getTypedText();
             const elapsed = Math.floor((Date.now() - roundStartTime) / 1000);
-            const roundData = roomConfig.rounds[`r${roundNumber}`];
+            const roundData = roomConfig.rounds.r1;
             
+            console.log('[TypingGame] Submitting result for user:', user.uid);
             const result = await submitTypingResult(user.uid, roomId, roundNumber, roundData.paragraph, typedText, Math.min(elapsed, roundDuration));
             if (result.success) {
                 savedScore = result.score;
                 localStorage.setItem(getKey('score', roundNumber), JSON.stringify(result.score));
                 localStorage.setItem(getKey('submitted', roundNumber), 'true');
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                await calculateEliminations(roomId, roundNumber, qualifyCount);
-                await transitionToResult(roomId, roundNumber);
-            } else { hasSubmitted = false; }
+                console.log('[TypingGame] Result submitted successfully:', result.score);
+                
+                // Don't call calculateResults here - let the admin handle round transitions
+                // Just wait for the room state to change to 'result'
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            } else { 
+                console.error('[TypingGame] Failed to submit result:', result.error);
+                hasSubmitted = false; 
+            }
         }
         
         function handleResult(roundNumber, score) {
@@ -909,66 +928,126 @@
         }
 
         async function goToNext(roundNumber) {
-            // Check participant status from the correct collection path
-            const participantRef = doc(db, 'participants', user.uid);
-            const participantSnap = await getDoc(participantRef);
-            if (participantSnap.exists()) {
-                const data = participantSnap.data();
-                if (data.isEliminated || data.status === 'eliminated' || data.eliminatedInRound === roundNumber) {
-                    window.location.href = 'eliminated.html';
-                    return;
-                }
-            }
-            if (roundNumber >= 3) {
-                // Update room status to 'completed' in Firestore before showing completed screen
-                await transitionToNextWaiting(roomId, roundNumber);
-                handleCompleted();
-                return;
-            }
-            // Transition to waiting for next round
+            // Round is complete, transition to completed
             await transitionToNextWaiting(roomId, roundNumber);
         }
 
         function handleCompleted() {
             showScreen('completedScreen');
             clearAllIntervals();
-            const finalMessage = document.getElementById('finalResultMessage');
-            if (savedScore) {
-                finalMessage.innerHTML = `<h2>Your Final Score: ${(savedScore.finalScore || 0).toFixed(2)}</h2><h3>WPM: ${Math.round(savedScore.wpm)} | Accuracy: ${Math.round(savedScore.accuracy)}%</h3>`;
-            }
+            
+            // Check user's qualification status
+            const checkQualificationStatus = async () => {
+                try {
+                    const participantRef = doc(db, 'participants', user.uid);
+                    const participantDoc = await getDoc(participantRef);
+                    if (participantDoc.exists()) {
+                        const data = participantDoc.data();
+                        const finalMessage = document.getElementById('finalResultMessage');
+                        
+                        if (data.status === 'qualified') {
+                            finalMessage.innerHTML = `
+                                <h2>🎉 Congratulations!</h2>
+                                <h3>You have qualified for Round 2!</h3>
+                                <p style="margin-top: 16px; color: var(--text-secondary);">
+                                    You will receive instructions for Round 2 separately.<br>
+                                    Your Round 1 performance: ${savedScore ? `${Math.round(savedScore.wpm)} WPM, ${Math.round(savedScore.accuracy)}% accuracy` : 'Score pending'}
+                                </p>
+                            `;
+                        } else if (data.status === 'eliminated') {
+                            finalMessage.innerHTML = `
+                                <h2>Competition Complete</h2>
+                                <h3>Thank you for participating!</h3>
+                                <p style="margin-top: 16px; color: var(--text-secondary);">
+                                    Unfortunately, you did not qualify for Round 2.<br>
+                                    Your Round 1 performance: ${savedScore ? `${Math.round(savedScore.wpm)} WPM, ${Math.round(savedScore.accuracy)}% accuracy` : 'Score pending'}
+                                </p>
+                            `;
+                        } else {
+                            // Default message
+                            if (savedScore) {
+                                finalMessage.innerHTML = `<h2>Your Final Score: ${(savedScore.finalScore || 0).toFixed(2)}</h2><h3>WPM: ${Math.round(savedScore.wpm)} | Accuracy: ${Math.round(savedScore.accuracy)}%</h3>`;
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error checking qualification status:', error);
+                    if (savedScore) {
+                        const finalMessage = document.getElementById('finalResultMessage');
+                        finalMessage.innerHTML = `<h2>Your Final Score: ${(savedScore.finalScore || 0).toFixed(2)}</h2><h3>WPM: ${Math.round(savedScore.wpm)} | Accuracy: ${Math.round(savedScore.accuracy)}%</h3>`;
+                    }
+                }
+            };
+            
+            checkQualificationStatus();
         }
 
         async function initGame() {
+            console.log('[TypingGame] Initializing game...');
             if (!roomConfig) roomConfig = await getRoomConfig(roomId);
-            if (!roomConfig) { alert('Room not found'); window.location.href = 'join-room.html'; return; }
+            if (!roomConfig) { 
+                console.error('[TypingGame] Room config not found');
+                alert('Room not found'); 
+                window.location.href = 'join-room.html'; 
+                return; 
+            }
+            
+            console.log('[TypingGame] Room config loaded:', roomConfig);
+            
+            // Show waiting screen initially
+            showScreen('waitingScreen');
             
             // CRITICAL: Use listenToRoomState instead of listenToRoom
-            // This checks elimination status and redirects eliminated users
             unsubscribeAll = listenToRoomState(roomId, user.uid, async (roomData) => {
+                console.log('[TypingGame] Room state changed:', roomData);
+                
                 const state = roomData.status || roomData.roundStatus || 'waiting';
                 const round = getRoundFromState(state);
                 const screen = getScreenFromState(state);
                 
-                if (!roomConfig.rounds?.[`r${round}`]) { qualifyCount = 0; }
-                else { qualifyCount = roomConfig.rounds[`r${round}`].qualifyCount; }
+                console.log('[TypingGame] State:', state, 'Round:', round, 'Screen:', screen);
                 
-                if (roomData.status === 'completed' || screen === 'completed') { handleCompleted(); return; }
-                if (screen === 'waiting') { handleWaiting(`Waiting for Round ${round} to start...`); return; }
-                if (screen === 'typing') { await handleTyping(round); return; }
+                if (!roomConfig.rounds?.r1) { qualifyCount = 0; }
+                else { qualifyCount = roomConfig.rounds.r1.qualifyCount; }
+                
+                if (roomData.status === 'completed' || screen === 'completed') { 
+                    console.log('[TypingGame] Competition completed');
+                    handleCompleted(); 
+                    return; 
+                }
+                if (screen === 'waiting') { 
+                    console.log('[TypingGame] Waiting for round to start');
+                    handleWaiting(`Waiting for the round to start...`); 
+                    return; 
+                }
+                if (screen === 'typing') { 
+                    console.log('[TypingGame] Starting typing round');
+                    await handleTyping(1); 
+                    return; 
+                }
                 if (screen === 'result') {
-                    const result = await checkExistingResult(round);
-                    if (result.exists) { handleResult(round, result.score); }
+                    console.log('[TypingGame] Showing results');
+                    const result = await checkExistingResult(1);
+                    if (result.exists) { handleResult(1, result.score); }
                     else { handleWaiting('Waiting for results...'); }
                     return;
                 }
-                if (screen === 'leaderboard') { await handleLeaderboard(round); return; }
-            }, (participantData) => {
-                // User is eliminated - redirect to eliminated page
-                console.log('[Typing] User eliminated, redirecting...');
-                sessionStorage.setItem('showEliminationRound', participantData.eliminatedInRound || participantData.currentRound || 1);
-                window.location.href = 'eliminated.html';
+                if (screen === 'leaderboard') { 
+                    console.log('[TypingGame] Showing leaderboard');
+                    await handleLeaderboard(1); 
+                    return; 
+                }
+                
+                console.log('[TypingGame] Unknown state, defaulting to waiting');
+                handleWaiting('Loading...');
             });
         }
+        
+        // Initialize with waiting screen immediately
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('[TypingGame] DOM loaded, showing initial waiting screen');
+            showScreen('waitingScreen');
+        });
         
         initGame();
     </script>

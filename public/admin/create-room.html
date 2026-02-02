@@ -320,10 +320,10 @@
             </div>
 
             <div class="form-section">
-                <h2 class="section-title"><span class="round-badge">R1</span> Round 1 Configuration</h2>
+                <h2 class="section-title"><span class="round-badge">R1</span> Round Configuration</h2>
                 <div class="form-group">
                     <label for="r1Paragraph">Paragraph</label>
-                    <textarea id="r1Paragraph" name="r1Paragraph" required rows="4" placeholder="Enter the paragraph for Round 1"></textarea>
+                    <textarea id="r1Paragraph" name="r1Paragraph" required rows="4" placeholder="Enter the paragraph for the round"></textarea>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -331,44 +331,8 @@
                         <input type="number" id="r1Time" name="r1Time" required min="30" value="60">
                     </div>
                     <div class="form-group">
-                        <label for="r1QualifyCount">Qualify Count</label>
-                        <input type="number" id="r1QualifyCount" name="r1QualifyCount" required min="1" value="20">
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h2 class="section-title"><span class="round-badge">R2</span> Round 2 Configuration</h2>
-                <div class="form-group">
-                    <label for="r2Paragraph">Paragraph</label>
-                    <textarea id="r2Paragraph" name="r2Paragraph" required rows="4" placeholder="Enter the paragraph for Round 2"></textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="r2Time">Time (seconds)</label>
-                        <input type="number" id="r2Time" name="r2Time" required min="30" value="60">
-                    </div>
-                    <div class="form-group">
-                        <label for="r2QualifyCount">Qualify Count</label>
-                        <input type="number" id="r2QualifyCount" name="r2QualifyCount" required min="1" value="3">
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h2 class="section-title"><span class="round-badge">R3</span> Round 3 Configuration (Final)</h2>
-                <div class="form-group">
-                    <label for="r3Paragraph">Paragraph</label>
-                    <textarea id="r3Paragraph" name="r3Paragraph" required rows="4" placeholder="Enter the paragraph for Round 3"></textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="r3Time">Time (seconds)</label>
-                        <input type="number" id="r3Time" name="r3Time" required min="30" value="60">
-                    </div>
-                    <div class="form-group">
-                        <label for="r3QualifyCount">Qualify Count (Winners)</label>
-                        <input type="number" id="r3QualifyCount" name="r3QualifyCount" required min="1" value="3">
+                        <label for="r1QualifyCount">Winner Count</label>
+                        <input type="number" id="r1QualifyCount" name="r1QualifyCount" required min="1" value="3">
                         <small>Number of winners to declare (Top 3 recommended)</small>
                     </div>
                 </div>
@@ -412,17 +376,13 @@
             
             const roomName = document.getElementById('roomName').value.trim();
             const rounds = {
-                r1: { paragraph: document.getElementById('r1Paragraph').value.trim(), time: parseInt(document.getElementById('r1Time').value), qualifyCount: parseInt(document.getElementById('r1QualifyCount').value) },
-                r2: { paragraph: document.getElementById('r2Paragraph').value.trim(), time: parseInt(document.getElementById('r2Time').value), qualifyCount: parseInt(document.getElementById('r2QualifyCount').value) },
-                r3: { paragraph: document.getElementById('r3Paragraph').value.trim(), time: parseInt(document.getElementById('r3Time').value), qualifyCount: parseInt(document.getElementById('r3QualifyCount').value) }
+                r1: { paragraph: document.getElementById('r1Paragraph').value.trim(), time: parseInt(document.getElementById('r1Time').value), qualifyCount: parseInt(document.getElementById('r1QualifyCount').value) }
             };
             
             if (!roomName) { errorMessage.textContent = 'Please enter a room name'; errorMessage.style.display = 'flex'; return; }
-            for (let i = 1; i <= 3; i++) {
-                const round = rounds[`r${i}`];
-                if (!round.paragraph) { errorMessage.textContent = `Please enter paragraph for Round ${i}`; errorMessage.style.display = 'flex'; return; }
-                if (round.time < 30) { errorMessage.textContent = `Time for Round ${i} must be at least 30 seconds`; errorMessage.style.display = 'flex'; return; }
-            }
+            const round = rounds.r1;
+            if (!round.paragraph) { errorMessage.textContent = 'Please enter paragraph for the round'; errorMessage.style.display = 'flex'; return; }
+            if (round.time < 30) { errorMessage.textContent = 'Time must be at least 30 seconds'; errorMessage.style.display = 'flex'; return; }
             
             const submitBtn = e.target.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;

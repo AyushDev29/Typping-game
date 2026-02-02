@@ -132,15 +132,15 @@
             <h2 id="roomName">Loading...</h2>
             <p><strong>Room Code:</strong> <span id="roomCode" class="room-code"></span> <span id="lockedBadge" class="locked-badge" style="display: none;">🔒 Entry Locked</span></p>
             <p><strong>State:</strong> <span id="roomState" class="state-badge">-</span></p>
-            <p><strong>Current Round:</strong> <span id="currentRound">0</span></p>
+            <p><strong>Current Round:</strong> <span id="currentRound">1</span></p>
         </div>
 
         <div class="info-banner">
             <div class="icon">ℹ️</div>
             <div>
-                <h4>Automatic Round Management</h4>
-                <p>Rounds end automatically when the timer expires. You only need to <strong>start</strong> each round.</p>
-                <p>⚠️ Once Round 1 starts, <strong>no new participants can join</strong> the room.</p>
+                <h4>Single Round Competition</h4>
+                <p>This is a single round competition. The round ends automatically when the timer expires.</p>
+                <p>⚠️ Once the round starts, <strong>no new participants can join</strong> the room.</p>
             </div>
         </div>
 
@@ -151,10 +151,8 @@
 
         <div class="section-card">
             <div class="section-header"><h2 class="section-title"><div class="section-icon">🎯</div>Round Control</h2></div>
-            <div id="roundControls" class="rounds-grid">
-                <div class="round-card"><div class="round-header"><h3>Round 1</h3><span id="r1State" class="state-badge state-waiting">Waiting</span></div><button id="startR1" class="btn btn-primary" onclick="handleStartRound(1)">Start Round 1</button></div>
-                <div class="round-card"><div class="round-header"><h3>Round 2</h3><span id="r2State" class="state-badge state-waiting">Waiting</span></div><button id="startR2" class="btn btn-primary" onclick="handleStartRound(2)" disabled>Start Round 2</button></div>
-                <div class="round-card"><div class="round-header"><h3>Round 3</h3><span id="r3State" class="state-badge state-waiting">Waiting</span></div><button id="startR3" class="btn btn-primary" onclick="handleStartRound(3)" disabled>Start Round 3</button></div>
+            <div id="roundControls" style="display: flex; justify-content: center;">
+                <div class="round-card" style="max-width: 300px;"><div class="round-header"><h3>Round</h3><span id="r1State" class="state-badge state-waiting">Waiting</span></div><button id="startR1" class="btn btn-primary" onclick="handleStartRound(1)">Start Round</button></div>
             </div>
         </div>
 
@@ -162,7 +160,6 @@
             <div class="section-header">
                 <h2 class="section-title"><div class="section-icon">📊</div>Leaderboard</h2>
                 <div class="leaderboard-controls">
-                    <select id="leaderboardRoundSelect" class="round-select"><option value="1">Round 1</option><option value="2">Round 2</option><option value="3">Round 3</option></select>
                     <button class="btn btn-danger" onclick="handleClearRound()" style="width:auto;padding:10px 16px;">🗑️ Clear</button>
                 </div>
             </div>
@@ -185,7 +182,9 @@
     <script type="module">
         import { getCurrentUser, logoutUser } from '../js/auth.js';
         import { getRoomData, getRoomConfig, listenToRoom, listenToParticipants } from '../js/room.js';
-        import { startRound, getLeaderboard, listenToLeaderboard, deleteRoom, clearRoundResults } from '../js/admin.js';
+        import { startRound, getLeaderboard, listenToLeaderboard, deleteRoom, clearRoundResults, endRound } from '../js/admin.js';
+        import { db } from '../js/firebase.js';
+        import { collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         
         const user = getCurrentUser();
         if (!user) { window.location.href = '../login.html'; }
@@ -196,7 +195,8 @@
         if (!roomId) { alert('Room ID not found'); window.location.href = 'dashboard.html'; }
         sessionStorage.setItem('roomId', roomId);
         
-        let roomData = null, roomConfig = null, unsubscribeRoom = null, unsubscribeParticipants = null, unsubscribeLeaderboard = null, currentLeaderboardRound = 1;
+        let roomData = null, roomConfig = null, unsubscribeRoom = null, unsubscribeParticipants = null, unsubscribeLeaderboard = null;
+        let roundTimer = null; // Timer for automatic round ending
         
         async function loadRoomData() {
             roomData = await getRoomData(roomId);
@@ -209,9 +209,9 @@
         function updateRoomInfo() {
             document.getElementById('roomName').textContent = roomData.roomName || 'Untitled Room';
             document.getElementById('roomCode').textContent = roomData.roomCode;
-            document.getElementById('currentRound').textContent = roomData.currentRound || 0;
+            document.getElementById('currentRound').textContent = '1';
             const status = roomData.status || roomData.roundStatus || 'waiting';
-            const isLocked = (roomData.currentRound || 0) >= 1 || status !== 'waiting';
+            const isLocked = status !== 'waiting';
             document.getElementById('lockedBadge').style.display = isLocked ? 'inline' : 'none';
             const stateEl = document.getElementById('roomState');
             stateEl.textContent = status;
@@ -223,32 +223,63 @@
         
         function updateRoundControls() {
             const status = roomData.status || roomData.roundStatus || 'waiting';
-            for (let i = 1; i <= 3; i++) {
-                document.getElementById(`startR${i}`).disabled = true;
-                document.getElementById(`r${i}State`).textContent = 'Waiting';
-                document.getElementById(`r${i}State`).className = 'state-badge state-waiting';
+            const startBtn = document.getElementById('startR1');
+            const stateEl = document.getElementById('r1State');
+            
+            // Clear any existing timer
+            if (roundTimer) {
+                clearTimeout(roundTimer);
+                roundTimer = null;
             }
-            if (status === 'waiting') document.getElementById('startR1').disabled = false;
-            else if (status === 'round1') { document.getElementById('r1State').textContent = 'Active'; document.getElementById('r1State').className = 'state-badge state-active'; }
-            else if (status.startsWith('round1_') || status === 'round2_waiting') { document.getElementById('r1State').textContent = 'Complete'; document.getElementById('r1State').className = 'state-badge state-completed'; if (status === 'round2_waiting') document.getElementById('startR2').disabled = false; }
-            else if (status === 'round2') { document.getElementById('r1State').textContent = 'Complete'; document.getElementById('r1State').className = 'state-badge state-completed'; document.getElementById('r2State').textContent = 'Active'; document.getElementById('r2State').className = 'state-badge state-active'; }
-            else if (status.startsWith('round2_') || status === 'round3_waiting') { document.getElementById('r1State').textContent = 'Complete'; document.getElementById('r1State').className = 'state-badge state-completed'; document.getElementById('r2State').textContent = 'Complete'; document.getElementById('r2State').className = 'state-badge state-completed'; if (status === 'round3_waiting') document.getElementById('startR3').disabled = false; }
-            else if (status === 'round3') { for (let i = 1; i <= 2; i++) { document.getElementById(`r${i}State`).textContent = 'Complete'; document.getElementById(`r${i}State`).className = 'state-badge state-completed'; } document.getElementById('r3State').textContent = 'Active'; document.getElementById('r3State').className = 'state-badge state-active'; }
-            else if (status === 'completed' || status.startsWith('round3_')) { for (let i = 1; i <= 3; i++) { document.getElementById(`r${i}State`).textContent = 'Complete'; document.getElementById(`r${i}State`).className = 'state-badge state-completed'; } }
+            
+            if (status === 'waiting') {
+                startBtn.disabled = false;
+                stateEl.textContent = 'Waiting';
+                stateEl.className = 'state-badge state-waiting';
+            } else if (status === 'round1') {
+                startBtn.disabled = true;
+                stateEl.textContent = 'Active';
+                stateEl.className = 'state-badge state-active';
+                
+                // Set up automatic round ending
+                if (roomConfig?.rounds?.r1?.time && roomData.roundStartedAt) {
+                    const roundDuration = roomConfig.rounds.r1.time * 1000; // Convert to milliseconds
+                    const startTime = roomData.roundStartedAt.toMillis ? roomData.roundStartedAt.toMillis() : roomData.roundStartedAt;
+                    const elapsed = Date.now() - startTime;
+                    const remaining = roundDuration - elapsed;
+                    
+                    if (remaining > 0) {
+                        console.log(`[AdminTimer] Round will auto-end in ${Math.ceil(remaining/1000)} seconds`);
+                        roundTimer = setTimeout(async () => {
+                            console.log('[AdminTimer] Auto-ending round due to time expiry');
+                            const result = await endRound(roomId, 1);
+                            if (result.success) {
+                                console.log('[AdminTimer] Round ended successfully');
+                            } else {
+                                console.error('[AdminTimer] Failed to end round:', result.error);
+                            }
+                        }, remaining + 5000); // Add 5 seconds buffer for user submissions
+                    }
+                }
+            } else {
+                startBtn.disabled = true;
+                stateEl.textContent = 'Complete';
+                stateEl.className = 'state-badge state-completed';
+            }
         }
         
         window.handleStartRound = async function(roundNumber) {
-            if (!confirm(`Start Round ${roundNumber}?\n\n⚠️ Once started, no new participants can join!`)) return;
+            if (!confirm(`Start the competition round?\n\n⚠️ Once started, no new participants can join!`)) return;
             const btn = document.getElementById(`startR${roundNumber}`);
             btn.disabled = true; btn.textContent = 'Starting...';
             const result = await startRound(roomId, roundNumber);
-            if (!result.success) { alert('Failed: ' + result.error); btn.disabled = false; btn.textContent = `Start Round ${roundNumber}`; }
+            if (!result.success) { alert('Failed: ' + result.error); btn.disabled = false; btn.textContent = `Start Round`; }
         };
         
         window.handleClearRound = async function() {
-            if (!confirm(`⚠️ Delete all results for Round ${currentLeaderboardRound}?`)) return;
-            const result = await clearRoundResults(roomId, currentLeaderboardRound);
-            if (result.success) { alert(`✅ Deleted ${result.deleted} results`); loadLeaderboard(currentLeaderboardRound); }
+            if (!confirm(`⚠️ Delete all results for the round?`)) return;
+            const result = await clearRoundResults(roomId, 1);
+            if (result.success) { alert(`✅ Deleted ${result.deleted} results`); loadLeaderboard(1); }
             else alert('Failed: ' + result.error);
         };
         
@@ -276,15 +307,23 @@
         };
         
         async function loadLeaderboard(roundNumber) {
+            console.log('[AdminLeaderboard] Loading leaderboard for round:', roundNumber);
             const leaderboard = await getLeaderboard(roomId, roundNumber);
+            console.log('[AdminLeaderboard] Received leaderboard:', leaderboard);
+            
             const tbody = document.getElementById('leaderboardBody');
-            if (leaderboard.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">No results yet</td></tr>'; return; }
-            const qualifyCount = roomConfig?.rounds?.[`r${roundNumber}`]?.qualifyCount || 3;
-            leaderboard.sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0));
+            if (leaderboard.length === 0) { 
+                console.log('[AdminLeaderboard] No results found');
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">No results yet</td></tr>'; 
+                return; 
+            }
+            const qualifyCount = roomConfig?.rounds?.r1?.qualifyCount || 3;
+            // Don't re-sort here since getLeaderboard already returns sorted data
             tbody.innerHTML = leaderboard.map((entry, index) => {
-                const rank = index + 1, isQualified = rank <= qualifyCount;
-                const statusBadge = isQualified ? '<span style="color:#34d399;font-weight:600;">✓ Qualified</span>' : '<span style="color:#f87171;font-weight:600;">✗ Eliminated</span>';
-                return `<tr class="${isQualified ? 'qualified-row' : 'eliminated-row'}"><td><strong>#${rank}</strong></td><td>${entry.name || 'Unknown'}</td><td>${(entry.wpm || 0).toFixed(2)}</td><td>${(entry.accuracy || 0).toFixed(2)}%</td><td>${(entry.finalScore || 0).toFixed(2)}</td><td>${statusBadge}</td></tr>`;
+                const rank = index + 1, isWinner = rank <= qualifyCount;
+                const statusBadge = isWinner ? '<span style="color:#34d399;font-weight:600;">🏆 Winner</span>' : '<span style="color:#f87171;font-weight:600;">Participant</span>';
+                const wpm = entry.netWpm || entry.wpm || 0;
+                return `<tr class="${isWinner ? 'qualified-row' : ''}"><td><strong>#${rank}</strong></td><td>${entry.name || 'Unknown'}</td><td>${wpm.toFixed(2)}</td><td>${(entry.accuracy || 0).toFixed(2)}%</td><td>${(entry.finalScore || 0).toFixed(2)}</td><td>${statusBadge}</td></tr>`;
             }).join('');
         }
         
@@ -295,7 +334,16 @@
             if (participants.length === 0) { list.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">No participants yet</p>'; return; }
             list.innerHTML = participants.map(p => `<div class="participant-item"><span class="participant-name">${p.name}</span><span class="participant-status status-${p.status}">${p.status}</span></div>`).join('');
         });
-        document.getElementById('leaderboardRoundSelect').addEventListener('change', (e) => { currentLeaderboardRound = parseInt(e.target.value); loadLeaderboard(currentLeaderboardRound); });
+        
+        // Add real-time listener for leaderboard updates
+        const resultsRef = collection(db, 'results');
+        const resultsQuery = query(resultsRef, where('roomId', '==', roomId), where('round', '==', 1));
+        unsubscribeLeaderboard = onSnapshot(resultsQuery, (snapshot) => {
+            console.log('[AdminLeaderboard] Results updated, refreshing leaderboard');
+            loadLeaderboard(1);
+        }, (error) => {
+            console.error('[AdminLeaderboard] Results listener error:', error);
+        });
         loadRoomData();
         loadLeaderboard(1);
         window.addEventListener('beforeunload', () => { if (unsubscribeRoom) unsubscribeRoom(); if (unsubscribeParticipants) unsubscribeParticipants(); if (unsubscribeLeaderboard) unsubscribeLeaderboard(); });

@@ -49,34 +49,32 @@ export async function createRoom(config) {
       };
     }
     
-    if (!config.rounds || !config.rounds.r1 || !config.rounds.r2 || !config.rounds.r3) {
+    if (!config.rounds || !config.rounds.r1) {
       return {
         success: false,
-        error: 'All three rounds must be configured'
+        error: 'Round configuration must be provided'
       };
     }
     
-    // Validate round configurations
-    for (let round = 1; round <= 3; round++) {
-      const roundData = config.rounds[`r${round}`];
-      if (!roundData.paragraph || !roundData.time || !roundData.qualifyCount) {
-        return {
-          success: false,
-          error: `Round ${round} configuration is incomplete`
-        };
-      }
-      if (roundData.time <= 0 || roundData.time > 3600) {
-        return {
-          success: false,
-          error: `Round ${round} time must be between 1 and 3600 seconds`
-        };
-      }
-      if (roundData.qualifyCount < 1) {
-        return {
-          success: false,
-          error: `Round ${round} qualify count must be at least 1`
-        };
-      }
+    // Validate round configuration
+    const roundData = config.rounds.r1;
+    if (!roundData.paragraph || !roundData.time || !roundData.qualifyCount) {
+      return {
+        success: false,
+        error: 'Round configuration is incomplete'
+      };
+    }
+    if (roundData.time <= 0 || roundData.time > 3600) {
+      return {
+        success: false,
+        error: 'Round time must be between 1 and 3600 seconds'
+      };
+    }
+    if (roundData.qualifyCount < 1) {
+      return {
+        success: false,
+        error: 'Winner count must be at least 1'
+      };
     }
     
     // Generate unique room code (retry if duplicate)
@@ -126,16 +124,6 @@ export async function createRoom(config) {
           paragraph: config.rounds.r1.paragraph.trim(),
           time: parseInt(config.rounds.r1.time),
           qualifyCount: parseInt(config.rounds.r1.qualifyCount)
-        },
-        r2: {
-          paragraph: config.rounds.r2.paragraph.trim(),
-          time: parseInt(config.rounds.r2.time),
-          qualifyCount: parseInt(config.rounds.r2.qualifyCount)
-        },
-        r3: {
-          paragraph: config.rounds.r3.paragraph.trim(),
-          time: parseInt(config.rounds.r3.time),
-          qualifyCount: parseInt(config.rounds.r3.qualifyCount)
         }
       }
     });
@@ -244,7 +232,7 @@ export async function joinRoom(roomCode, userId, userName) {
     }
     
     // Add or update participant - CRITICAL: Reset ALL fields to prevent stale data
-    // Do NOT use merge: true as it preserves old elimination fields from previous rooms
+    // Do NOT use merge: true as it preserves old fields from previous rooms
     const participantRef = doc(db, 'participants', userId);
     
     // First check if user already exists in THIS room (re-joining before round starts)
@@ -253,21 +241,15 @@ export async function joinRoom(roomCode, userId, userName) {
       const existingData = existingDoc.data();
       // If user is already in THIS room and room hasn't started, reset their status
       if (existingData.roomId === roomId) {
-        // Room hasn't started yet (status === 'waiting'), so reset elimination fields
-        // This handles the case where user was eliminated in a previous session of same room
+        // Room hasn't started yet (status === 'waiting'), so reset fields
+        // This handles the case where user was in a previous session of same room
         await setDoc(participantRef, {
           name: userName,
           roomId: roomId,
           status: 'waiting',
           currentRound: 0,
           joinedAt: serverTimestamp(),
-          isEliminated: false,
-          eliminatedInRound: null,
-          isQualified: false,
-          isWinnerEligible: true,
           round1Completed: false,
-          round2Completed: false,
-          round3Completed: false,
           lastSubmittedRound: 0
         }); // Complete overwrite - reset everything
         
@@ -283,23 +265,16 @@ export async function joinRoom(roomCode, userId, userName) {
     
     // New participant OR switching rooms - completely reset all fields
     console.log('[JoinRoom] Creating/resetting participant document for user:', userId);
-    console.log('[JoinRoom] Setting: isEliminated=false, status=waiting, roomId=', roomId);
+    console.log('[JoinRoom] Setting: status=waiting, roomId=', roomId);
     
     await setDoc(participantRef, {
       name: userName,
       roomId: roomId,
-      status: 'waiting', // waiting, active, qualified, eliminated
+      status: 'waiting', // waiting, active, completed
       currentRound: 0,
       joinedAt: serverTimestamp(),
-      // CRITICAL: Explicitly reset all elimination-related fields
-      isEliminated: false,
-      eliminatedInRound: null,
-      isQualified: false,
-      isWinnerEligible: true, // All new joiners are eligible until eliminated
       // Reset any round-specific data
       round1Completed: false,
-      round2Completed: false,
-      round3Completed: false,
       lastSubmittedRound: 0
     }); // NO merge: true - completely overwrite to clear stale data
     

@@ -1,14 +1,15 @@
 /**
- * Scoring Module
+ * Scoring Module - MonkeyType Style
  * 
- * Calculates typing metrics:
- * - Accuracy: (CorrectChars / TotalChars) × 100
- * - WPM: (CorrectChars / 5) / Minutes
- * - Final Score: WPM × (Accuracy / 100)
+ * Calculates typing metrics using MonkeyType methodology:
+ * - Raw WPM: All typed characters / 5 / minutes
+ * - Net WPM: (Correct characters - Incorrect characters) / 5 / minutes  
+ * - Accuracy: Correct characters / Total characters typed × 100
+ * - Final Score: Net WPM (primary metric for ranking)
  */
 
 /**
- * Calculate typing metrics - WORD-BY-WORD ACCURACY (SPEC COMPLIANT)
+ * Calculate typing metrics using MonkeyType methodology
  * @param {string} originalText - The paragraph to type
  * @param {string} typedText - What the user typed
  * @param {number} timeInSeconds - Time taken in seconds
@@ -18,12 +19,14 @@ export function calculateScore(originalText, typedText, timeInSeconds) {
   // Validate inputs
   if (!originalText || typeof originalText !== 'string') {
     return {
-      correctWords: 0,
-      totalWords: 0,
       correctChars: 0,
-      totalChars: 0,
+      incorrectChars: 0,
+      totalCharsTyped: 0,
+      totalCharsExpected: 0,
       accuracy: 0,
-      wpm: 0,
+      rawWpm: 0,
+      netWpm: 0,
+      wpm: 0, // Net WPM (for compatibility)
       finalScore: 0
     };
   }
@@ -36,66 +39,78 @@ export function calculateScore(originalText, typedText, timeInSeconds) {
     timeInSeconds = 1; // Default to 1 second to avoid division by zero
   }
   
-  // Normalize whitespace and trim
-  const original = originalText.trim().replace(/\s+/g, ' ');
-  const typed = typedText.trim().replace(/\s+/g, ' ');
+  // Normalize the original text (preserve exact spacing and punctuation)
+  const original = originalText.trim();
+  const typed = typedText;
   
   // Handle empty original text
   if (original.length === 0) {
     return {
-      correctWords: 0,
-      totalWords: 0,
       correctChars: 0,
-      totalChars: 0,
+      incorrectChars: 0,
+      totalCharsTyped: 0,
+      totalCharsExpected: 0,
       accuracy: 0,
+      rawWpm: 0,
+      netWpm: 0,
       wpm: 0,
       finalScore: 0
     };
   }
   
-  // CRITICAL: Split into words for word-by-word comparison
-  const originalWords = original.split(' ');
-  const typedWords = typed.split(' ');
-  
-  const totalWords = originalWords.length;
-  let correctWords = 0;
+  // Character-by-character comparison (MonkeyType style)
   let correctChars = 0;
+  let incorrectChars = 0;
+  const totalCharsTyped = typed.length;
+  const totalCharsExpected = original.length;
   
-  // Compare word by word at each position
-  for (let i = 0; i < totalWords; i++) {
-    const originalWord = originalWords[i];
-    const typedWord = typedWords[i] || ''; // Empty string if user didn't type this word
-    
-    // Word must match EXACTLY to be counted as correct
-    if (originalWord === typedWord) {
-      correctWords++;
-      // Count characters from correct words only
-      correctChars += originalWord.length;
+  // Compare each character position
+  const minLength = Math.min(original.length, typed.length);
+  
+  for (let i = 0; i < minLength; i++) {
+    if (original[i] === typed[i]) {
+      correctChars++;
+    } else {
+      incorrectChars++;
     }
-    // Missing words or wrong words = 0 credit
   }
   
-  // Calculate WORD-BASED accuracy
-  // Accuracy = (Correct Words / Total Words) × 100
-  const accuracy = totalWords > 0 ? (correctWords / totalWords) * 100 : 0;
+  // Handle extra characters typed (all count as incorrect)
+  if (typed.length > original.length) {
+    incorrectChars += (typed.length - original.length);
+  }
   
-  // Calculate WPM using correct characters from correct words
-  // WPM = (Correct Characters / 5) / Minutes
+  // Handle missing characters (count as incorrect for accuracy calculation)
+  if (original.length > typed.length) {
+    incorrectChars += (original.length - typed.length);
+  }
+  
+  // Calculate accuracy: correct chars / total chars that should have been typed
+  const accuracy = totalCharsExpected > 0 ? (correctChars / totalCharsExpected) * 100 : 0;
+  
+  // Calculate WPM using MonkeyType methodology
   const timeInMinutes = timeInSeconds / 60;
-  const wpm = timeInMinutes > 0 ? (correctChars / 5) / timeInMinutes : 0;
   
-  // Calculate Final Score
-  // Final Score = WPM × (Accuracy / 100)
-  const finalScore = wpm * (accuracy / 100);
+  // Raw WPM: All characters typed / 5 / minutes
+  const rawWpm = timeInMinutes > 0 ? (totalCharsTyped / 5) / timeInMinutes : 0;
+  
+  // Net WPM: (Correct chars - Incorrect chars) / 5 / minutes
+  // This is the primary metric used for ranking
+  const netWpm = timeInMinutes > 0 ? Math.max(0, (correctChars - incorrectChars) / 5) / timeInMinutes : 0;
+  
+  // Final Score = Net WPM (this is what MonkeyType uses for ranking)
+  const finalScore = netWpm;
   
   // Ensure all values are valid numbers
   return {
-    correctWords: Math.max(0, correctWords),
-    totalWords: Math.max(0, totalWords),
     correctChars: Math.max(0, correctChars),
-    totalChars: original.length,
-    accuracy: Math.max(0, Math.min(100, Math.round(accuracy * 100) / 100)), // Clamp between 0-100
-    wpm: Math.max(0, Math.round(wpm * 100) / 100),
+    incorrectChars: Math.max(0, incorrectChars),
+    totalCharsTyped: Math.max(0, totalCharsTyped),
+    totalCharsExpected: Math.max(0, totalCharsExpected),
+    accuracy: Math.max(0, Math.min(100, Math.round(accuracy * 100) / 100)),
+    rawWpm: Math.max(0, Math.round(rawWpm * 100) / 100),
+    netWpm: Math.max(0, Math.round(netWpm * 100) / 100),
+    wpm: Math.max(0, Math.round(netWpm * 100) / 100), // Use Net WPM as primary WPM
     finalScore: Math.max(0, Math.round(finalScore * 100) / 100)
   };
 }

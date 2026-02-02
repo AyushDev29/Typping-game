@@ -1,25 +1,13 @@
 /**
- * ROOM STATE MANAGEMENT MODULE - v2.0
- * 
- * SINGLE SOURCE OF TRUTH for room state and user eligibility.
- * All UI navigation depends ONLY on room.status + participant data.
+ * ROOM STATE MANAGEMENT MODULE - Single Round Version
  * 
  * STATE MACHINE:
- * waiting → round1 → round1_result → round1_leaderboard →
- * round2_waiting → round2 → round2_result → round2_leaderboard →
- * round3_waiting → round3 → round3_result → round3_leaderboard → completed
+ * waiting → round1 → round1_result → round1_leaderboard → completed
  * 
  * PARTICIPANT STATUS:
  * - waiting: Initial state
- * - active: Currently in a round
- * - qualified: Passed current round, eligible for next
- * - eliminated: Out of competition
- * 
- * CRITICAL RULES:
- * 1. Eliminated users CANNOT enter next rounds
- * 2. Winner is determined ONLY from Round 3 scores
- * 3. Scores are stored per-round, NOT combined
- * 4. Screen state derived from: room.status + participant.status + participant.eliminatedInRound
+ * - active: Currently in the round
+ * - completed: Finished the round
  */
 
 import { db } from './firebase.js';
@@ -45,13 +33,11 @@ export const TIMEOUTS = {
 /**
  * Get round number from state
  * @param {string} state - Room status
- * @returns {number} - Round number (0-3)
+ * @returns {number} - Round number (0-1)
  */
 export function getRoundFromState(state) {
   if (!state) return 0;
   if (state.startsWith('round1')) return 1;
-  if (state.startsWith('round2')) return 2;
-  if (state.startsWith('round3')) return 3;
   return 0;
 }
 
@@ -63,7 +49,7 @@ export function getRoundFromState(state) {
 export function getScreenFromState(state) {
   if (!state) return 'waiting';
   if (state === 'waiting' || state.endsWith('_waiting')) return 'waiting';
-  if (state === 'round1' || state === 'round2' || state === 'round3') return 'typing';
+  if (state === 'round1') return 'typing';
   if (state.endsWith('_result')) return 'result';
   if (state.endsWith('_leaderboard')) return 'leaderboard';
   if (state === 'completed') return 'completed';
@@ -71,7 +57,7 @@ export function getScreenFromState(state) {
 }
 
 /**
- * Determine what screen a user should see based on room state and their status
+ * Determine what screen a user should see based on room state
  * @param {Object} roomData - Room document data
  * @param {Object} participantData - Participant document data
  * @returns {Object} - { screen, roundNumber, canProceed, redirectTo }
@@ -80,32 +66,6 @@ export function determineUserScreen(roomData, participantData) {
   const roomStatus = roomData?.status || 'waiting';
   const roundNumber = getRoundFromState(roomStatus);
   const screenType = getScreenFromState(roomStatus);
-  
-  // Check if user is eliminated
-  if (participantData?.isEliminated || participantData?.status === 'eliminated') {
-    return {
-      screen: 'eliminated',
-      roundNumber: participantData.eliminatedInRound || participantData.currentRound || 1,
-      canProceed: false,
-      redirectTo: 'eliminated.html'
-    };
-  }
-  
-  // For waiting states after round 1, check if user qualified
-  if (screenType === 'waiting' && roundNumber > 1) {
-    const userCurrentRound = participantData?.currentRound || 0;
-    const userStatus = participantData?.status;
-    
-    // User must be qualified from previous round to see waiting for next round
-    if (userStatus !== 'qualified' || userCurrentRound < roundNumber - 1) {
-      return {
-        screen: 'eliminated',
-        roundNumber: userCurrentRound,
-        canProceed: false,
-        redirectTo: 'eliminated.html'
-      };
-    }
-  }
   
   return {
     screen: screenType,
@@ -170,13 +130,7 @@ export async function transitionToLeaderboard(roomId, roundNumber) {
 export async function transitionToNextWaiting(roomId, roundNumber) {
   try {
     const roomRef = doc(db, 'rooms', roomId);
-    let newState;
-    
-    if (roundNumber >= 3) {
-      newState = 'completed';
-    } else {
-      newState = `round${roundNumber + 1}_waiting`;
-    }
+    const newState = 'completed';
     
     await updateDoc(roomRef, {
       status: newState,
@@ -192,48 +146,16 @@ export async function transitionToNextWaiting(roomId, roundNumber) {
 }
 
 /**
- * Calculate eliminations for a round
- * CRITICAL: This determines who qualifies and who is eliminated
- * Uses a lock mechanism to prevent race conditions from multiple users
- * 
+ * Calculate results for the round
  * @param {string} roomId - Room ID
- * @param {number} roundNumber - Round number (1, 2, or 3)
- * @param {number} qualifyCount - Number of users who qualify
+ * @param {number} roundNumber - Round number (always 1)
+ * @param {number} qualifyCount - Number of winners
  */
-export async function calculateEliminations(roomId, roundNumber, qualifyCount) {
+export async function calculateResults(roomId, roundNumber, qualifyCount) {
   try {
-    console.log(`[Elimination] Round ${roundNumber}, qualify count: ${qualifyCount}`);
+    console.log(`[Results] Processing round ${roundNumber}, winner count: ${qualifyCount}`);
     
-    // First, check if eliminations have already been calculated for this round
-    // by checking if any participant has been marked as qualified/eliminated for this round
-    const participantsRef = collection(db, 'participants');
-    const participantsQuery = query(participantsRef, where('roomId', '==', roomId));
-    const participantsSnapshot = await getDocs(participantsQuery);
-    
-    let alreadyProcessed = false;
-    let activeParticipants = [];
-    
-    participantsSnapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      
-      // Check if this round has already been processed
-      if (data.currentRound === roundNumber && 
-          (data.status === 'qualified' || data.status === 'eliminated')) {
-        alreadyProcessed = true;
-      }
-      
-      // Collect participants who are not already eliminated from previous rounds
-      if (!data.isEliminated && data.status !== 'eliminated') {
-        activeParticipants.push({ id: docSnap.id, ref: docSnap.ref, data });
-      }
-    });
-    
-    if (alreadyProcessed) {
-      console.log(`[Elimination] Round ${roundNumber} already processed, skipping...`);
-      return { success: true, alreadyProcessed: true };
-    }
-    
-    // Get all results for THIS SPECIFIC round only
+    // Get all results for the round
     const resultsRef = collection(db, 'results');
     const q = query(
       resultsRef,
@@ -248,20 +170,22 @@ export async function calculateEliminations(roomId, roundNumber, qualifyCount) {
     });
     
     if (results.length === 0) {
-      console.log('[Elimination] No results found for this round');
+      console.log('[Results] No results found for this round');
       return { success: false, error: 'No results' };
     }
     
-    // CRITICAL: Sort by ACCURACY first, then WPM, then submission time
+    // CRITICAL: Sort by MonkeyType methodology - Net WPM first, then accuracy, then submission time
     results.sort((a, b) => {
-      // 1. Higher accuracy wins
-      if (Math.abs((a.accuracy || 0) - (b.accuracy || 0)) > 0.01) {
-        return (b.accuracy || 0) - (a.accuracy || 0);
+      // 1. Higher Net WPM wins (primary ranking metric)
+      const wpmA = a.netWpm || a.wpm || 0;
+      const wpmB = b.netWpm || b.wpm || 0;
+      if (Math.abs(wpmA - wpmB) > 0.01) {
+        return wpmB - wpmA;
       }
       
-      // 2. If accuracy is same, higher WPM wins
-      if (Math.abs((a.wpm || 0) - (b.wpm || 0)) > 0.01) {
-        return (b.wpm || 0) - (a.wpm || 0);
+      // 2. If WPM is same, higher accuracy wins
+      if (Math.abs((a.accuracy || 0) - (b.accuracy || 0)) > 0.01) {
+        return (b.accuracy || 0) - (a.accuracy || 0);
       }
       
       // 3. If both are same, earlier submission wins
@@ -270,86 +194,78 @@ export async function calculateEliminations(roomId, roundNumber, qualifyCount) {
       return timeA - timeB; // Earlier time = lower number = wins
     });
     
-    console.log(`[Elimination] Results sorted by score:`);
+    console.log(`[Results] Results sorted by Net WPM:`);
     results.forEach((r, i) => {
-      console.log(`  ${i + 1}. ${r.userId}: ${r.finalScore}`);
+      const wpm = r.netWpm || r.wpm || 0;
+      const isQualified = (i + 1) <= qualifyCount;
+      console.log(`  ${i + 1}. ${r.userId}: ${wpm} WPM, ${r.accuracy}% accuracy - ${isQualified ? 'QUALIFIED' : 'ELIMINATED'}`);
     });
     
-    // Top N qualify based on THIS ROUND's performance
-    const qualifiedUserIds = results.slice(0, qualifyCount).map(r => r.userId);
-    const eliminatedUserIds = results.slice(qualifyCount).map(r => r.userId);
+    // Update participants with qualification status
+    const participantsRef = collection(db, 'participants');
+    const participantsQuery = query(participantsRef, where('roomId', '==', roomId));
+    const participantsSnapshot = await getDocs(participantsQuery);
     
-    console.log(`[Elimination] Qualified users (top ${qualifyCount}): ${qualifiedUserIds.join(', ')}`);
-    console.log(`[Elimination] Eliminated users: ${eliminatedUserIds.join(', ')}`);
-    
-    // Update participants using batch
     const batch = writeBatch(db);
+    let completedCount = 0;
     let qualifiedCount = 0;
     let eliminatedCount = 0;
     
-    activeParticipants.forEach(participant => {
-      const participantId = participant.id;
+    // Create a map of user results for quick lookup
+    const userResultsMap = {};
+    results.forEach((result, index) => {
+      userResultsMap[result.userId] = {
+        rank: index + 1,
+        isQualified: (index + 1) <= qualifyCount,
+        ...result
+      };
+    });
+    
+    participantsSnapshot.forEach(docSnap => {
+      const userId = docSnap.id;
+      const userResult = userResultsMap[userId];
       
-      // Check if user has a result for this round
-      const hasResult = results.some(r => r.userId === participantId);
-      
-      if (!hasResult) {
-        // User didn't submit - eliminate them
-        console.log(`[Elimination] ${participantId}: No result submitted - ELIMINATED`);
-        batch.update(participant.ref, {
-          status: 'eliminated',
-          isEliminated: true,
-          eliminatedInRound: roundNumber,
-          isQualified: false,
-          isWinnerEligible: false,
+      if (userResult) {
+        // User has a result - update with qualification status
+        batch.update(docSnap.ref, {
+          status: userResult.isQualified ? 'qualified' : 'eliminated',
           currentRound: roundNumber,
+          finalRank: userResult.rank,
+          isQualified: userResult.isQualified,
           updatedAt: serverTimestamp()
         });
-        eliminatedCount++;
-        return;
-      }
-      
-      if (qualifiedUserIds.includes(participantId)) {
-        // User qualified
-        console.log(`[Elimination] ${participantId}: QUALIFIED`);
-        batch.update(participant.ref, {
-          status: 'qualified',
-          isQualified: true,
-          isEliminated: false,
-          currentRound: roundNumber,
-          // Only Round 3 finishers are winner eligible
-          isWinnerEligible: roundNumber === 3,
-          updatedAt: serverTimestamp()
-        });
-        qualifiedCount++;
+        
+        if (userResult.isQualified) {
+          qualifiedCount++;
+        } else {
+          eliminatedCount++;
+        }
       } else {
-        // User eliminated
-        console.log(`[Elimination] ${participantId}: ELIMINATED`);
-        batch.update(participant.ref, {
+        // User didn't submit - mark as eliminated
+        batch.update(docSnap.ref, {
           status: 'eliminated',
-          isEliminated: true,
-          eliminatedInRound: roundNumber,
-          isQualified: false,
-          isWinnerEligible: false,
           currentRound: roundNumber,
+          finalRank: results.length + 1, // Last place
+          isQualified: false,
           updatedAt: serverTimestamp()
         });
         eliminatedCount++;
       }
+      completedCount++;
     });
     
     await batch.commit();
-    console.log(`[Elimination] Complete: ${qualifiedCount} qualified, ${eliminatedCount} eliminated`);
+    console.log(`[Results] Complete: ${completedCount} participants processed, ${qualifiedCount} qualified, ${eliminatedCount} eliminated`);
     
     return { 
       success: true, 
-      qualified: qualifiedCount, 
-      eliminated: eliminatedCount, 
-      qualifiedUserIds,
-      eliminatedUserIds
+      completed: completedCount,
+      qualified: qualifiedCount,
+      eliminated: eliminatedCount,
+      results: results
     };
   } catch (error) {
-    console.error('[Elimination] Error:', error);
+    console.error('[Results] Error:', error);
     return { success: false, error: error.message };
   }
 }
@@ -374,14 +290,13 @@ export async function getParticipantData(userId) {
 }
 
 /**
- * Listen to room state changes with participant status
+ * Listen to room state changes
  * @param {string} roomId - Room ID
  * @param {string} userId - User ID
  * @param {Function} onStateChange - Callback for state changes
- * @param {Function} onEliminated - Callback when user is eliminated
  * @returns {Function} - Unsubscribe function
  */
-export function listenToRoomState(roomId, userId, onStateChange, onEliminated) {
+export function listenToRoomState(roomId, userId, onStateChange) {
   let isUnsubscribed = false;
   let roomUnsubscribe = null;
   let participantUnsubscribe = null;
@@ -392,20 +307,8 @@ export function listenToRoomState(roomId, userId, onStateChange, onEliminated) {
   const processState = () => {
     if (isUnsubscribed || !lastRoomData) return;
     
-    // Check elimination status
-    if (lastParticipantData?.isEliminated || lastParticipantData?.status === 'eliminated') {
-      console.log('[RoomState] User is eliminated');
-      onEliminated(lastParticipantData);
-      return;
-    }
-    
     // Determine what screen user should see
     const screenInfo = determineUserScreen(lastRoomData, lastParticipantData);
-    
-    if (screenInfo.redirectTo) {
-      onEliminated(lastParticipantData);
-      return;
-    }
     
     // Pass combined data to state handler
     onStateChange({
@@ -456,7 +359,6 @@ export function exitGame() {
   // Clear room-related session storage
   sessionStorage.removeItem('roomId');
   sessionStorage.removeItem('roomCode');
-  sessionStorage.removeItem('showEliminationRound');
   
   // Clear localStorage submission data for this room
   const keysToRemove = [];
@@ -478,10 +380,10 @@ export function exitGame() {
 }
 
 /**
- * Get round leaderboard - shows ONLY that round's participants and scores
- * SORTING: 1. Accuracy (DESC), 2. WPM (DESC), 3. Submission Time (ASC - earlier is better)
+ * Get round leaderboard - shows the round's participants and scores
+ * SORTING: 1. Net WPM (DESC), 2. Accuracy (DESC), 3. Submission Time (ASC - earlier is better)
  * @param {string} roomId - Room ID
- * @param {number} roundNumber - Round number
+ * @param {number} roundNumber - Round number (always 1)
  */
 export async function getRoundLeaderboard(roomId, roundNumber) {
   try {
@@ -499,16 +401,18 @@ export async function getRoundLeaderboard(roomId, roundNumber) {
       results.push({ id: docSnap.id, ...docSnap.data() });
     });
     
-    // CRITICAL: Sort by ACCURACY first, then WPM, then submission time
+    // CRITICAL: Sort by MonkeyType methodology - Net WPM first, then accuracy, then submission time
     results.sort((a, b) => {
-      // 1. Higher accuracy wins
-      if (Math.abs((a.accuracy || 0) - (b.accuracy || 0)) > 0.01) {
-        return (b.accuracy || 0) - (a.accuracy || 0);
+      // 1. Higher Net WPM wins (primary ranking metric)
+      const wpmA = a.netWpm || a.wpm || 0;
+      const wpmB = b.netWpm || b.wpm || 0;
+      if (Math.abs(wpmA - wpmB) > 0.01) {
+        return wpmB - wpmA;
       }
       
-      // 2. If accuracy is same, higher WPM wins
-      if (Math.abs((a.wpm || 0) - (b.wpm || 0)) > 0.01) {
-        return (b.wpm || 0) - (a.wpm || 0);
+      // 2. If WPM is same, higher accuracy wins
+      if (Math.abs((a.accuracy || 0) - (b.accuracy || 0)) > 0.01) {
+        return (b.accuracy || 0) - (a.accuracy || 0);
       }
       
       // 3. If both are same, earlier submission wins
@@ -523,35 +427,18 @@ export async function getRoundLeaderboard(roomId, roundNumber) {
     const participantsSnapshot = await getDocs(participantsQuery);
     
     const nameMap = {};
-    const statusMap = {};
     participantsSnapshot.forEach(docSnap => {
       const data = docSnap.data();
       nameMap[docSnap.id] = data.name || 'Unknown';
-      statusMap[docSnap.id] = {
-        status: data.status,
-        isEliminated: data.isEliminated,
-        eliminatedInRound: data.eliminatedInRound,
-        isQualified: data.isQualified
-      };
     });
     
-    // Add names and status to results
+    // Add names to results
     return results.map(result => ({
       ...result,
-      name: result.userName || nameMap[result.userId] || 'Unknown',
-      participantStatus: statusMap[result.userId] || {}
+      name: result.userName || nameMap[result.userId] || 'Unknown'
     }));
   } catch (error) {
     console.error('[RoomState] getRoundLeaderboard error:', error);
     return [];
   }
-}
-
-/**
- * Get final leaderboard - shows ONLY Round 3 participants
- * Winner is determined by Round 3 scores ONLY
- * @param {string} roomId - Room ID
- */
-export async function getFinalLeaderboard(roomId) {
-  return getRoundLeaderboard(roomId, 3);
 }

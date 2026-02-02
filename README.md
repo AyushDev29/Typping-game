@@ -1,226 +1,187 @@
-# Blind Typing Competition Game
+# 🎯 Blind Typing Competition - Single Round
 
-A competitive multiplayer blind typing game with 3 elimination rounds. Built with Firebase and vanilla JavaScript.
+A real-time blind typing competition web application built with Firebase. Participants compete in a single round where their keystrokes are hidden, testing their muscle memory and typing accuracy.
 
-## 🎮 Features
+## 🌟 Features
 
-- **3-Round Elimination System**: Progressive elimination after each round
-- **Real-time Multiplayer**: Support for 100+ concurrent users
-- **Blind Typing**: Hidden input for fair competition
-- **Word-by-Word Accuracy**: Strict accuracy calculation
-- **Admin Dashboard**: Complete room and user management
-- **Live Leaderboards**: Real-time rankings with proper sorting
-- **Responsive Design**: Works on desktop and mobile
+### 🔥 Core Functionality
+- **Single Round Competition**: Streamlined one-round format
+- **Blind Typing**: Keystrokes are hidden during typing
+- **Real-time Multiplayer**: Up to 100+ concurrent participants
+- **MonkeyType-Style Scoring**: Net WPM, accuracy, and character-based calculations
+- **Live Leaderboards**: Real-time updates during and after competition
+- **Qualification System**: Configurable winner count with automatic qualification/elimination
+
+### 👨‍💼 Admin Features
+- **Room Management**: Create and control competition rooms
+- **Live Monitoring**: Real-time participant tracking and statistics
+- **Automatic Round Management**: Timer-based round ending
+- **Result Analytics**: Comprehensive performance metrics
+
+### 🏆 Participant Experience
+- **Seamless Join Process**: Easy room joining with codes
+- **Live Competition**: Real-time typing with hidden input
+- **Instant Results**: Immediate score calculation and ranking
+- **Qualification Status**: Clear messaging for Round 2 qualification
 
 ## 🚀 Live Demo
 
-- **Firebase Hosting**: [https://blind-typing-1.firebaseapp.com](https://blind-typing-1.firebaseapp.com)
+**🔗 Application**: [https://blind-typing-1.firebaseapp.com/](https://blind-typing-1.firebaseapp.com/)
 
-## 📋 Prerequisites
+## 📊 Scoring System (MonkeyType Style)
 
-- Firebase account
-- Node.js (for Firebase CLI)
+### Metrics Calculated:
+- **Net WPM**: (Correct chars - Incorrect chars) / 5 / minutes *(Primary ranking metric)*
+- **Raw WPM**: All typed characters / 5 / minutes
+- **Accuracy**: Correct characters / Expected characters × 100%
+- **Final Score**: Net WPM *(used for leaderboard ranking)*
+
+### Ranking Priority:
+1. **Net WPM** (Higher is better)
+2. **Accuracy** (Higher is better) 
+3. **Submission Time** (Earlier is better)
+
+## 🎮 How to Use
+
+### For Participants:
+1. Visit the application URL
+2. Enter your name and join a room with the room code
+3. Wait for admin to start the round
+4. Type the displayed paragraph (your input is hidden)
+5. Submit when finished or when time expires
+6. View results and qualification status
+
+### For Admins:
+1. Go to `/admin/dashboard.html`
+2. Create a new room with desired settings
+3. Configure winner count (how many qualify for Round 2)
+4. Share room code with participants
+5. Start the round when ready
+6. Monitor progress and view live results
+
+## 🏗️ Technical Architecture
+
+### Frontend:
+- **Vanilla JavaScript** (ES6 modules)
+- **Firebase SDK** for real-time database
+- **Responsive CSS** with modern design
+- **Real-time listeners** for live updates
+
+### Backend:
+- **Firebase Firestore** for data storage
+- **Firebase Authentication** for user management
+- **Firebase Hosting** for deployment
+- **Real-time synchronization** across all clients
+
+### Key Collections:
+- `rooms` - Competition room data and status
+- `roomConfig` - Room settings and paragraph content
+- `participants` - User data and qualification status
+- `results` - Typing results and scores
+
+## 🔧 Setup & Deployment
+
+### Prerequisites:
+- Node.js and npm
+- Firebase CLI
 - Git
 
-## 🛠️ Installation
-
-### 1. Clone the Repository
-
+### Local Development:
 ```bash
+# Clone the repository
 git clone https://github.com/AyushDev29/Typping-game.git
 cd Typping-game
-```
 
-### 2. Firebase Setup
-
-1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com)
-2. Enable Authentication (Email/Password)
-3. Enable Firestore Database
-4. Enable Hosting
-
-### 3. Configure Firebase
-
-Update `public/js/firebase.js` with your Firebase config:
-
-```javascript
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-```
-
-### 4. Set Up Firestore Rules
-
-Copy the rules from `FIRESTORE_RULES.txt` to your Firestore Rules in Firebase Console.
-
-### 5. Create Required Firestore Index
-
-Create a composite index on the `results` collection:
-- Collection: `results`
-- Fields:
-  - `roomId` (Ascending)
-  - `round` (Ascending)
-  - `accuracy` (Descending)
-
-## 🚀 Deployment
-
-### Deploy to Firebase Hosting
-
-```bash
+# Install Firebase CLI (if not installed)
 npm install -g firebase-tools
+
+# Login to Firebase
 firebase login
-firebase init hosting
-firebase deploy --only hosting
+
+# Serve locally
+firebase serve
 ```
 
-### Deploy to Vercel
-
-1. Install Vercel CLI:
+### Deployment:
 ```bash
-npm install -g vercel
+# Build and deploy
+firebase deploy
 ```
-
-2. Deploy:
-```bash
-vercel
-```
-
-3. Configure build settings in Vercel dashboard:
-   - **Build Command**: Leave empty (static site)
-   - **Output Directory**: `public`
-   - **Install Command**: Leave empty
 
 ## 📁 Project Structure
 
 ```
 ├── public/
-│   ├── admin/              # Admin dashboard pages
-│   ├── css/                # Stylesheets
-│   ├── js/                 # JavaScript modules
-│   │   ├── firebase.js     # Firebase configuration
-│   │   ├── auth.js         # Authentication logic
-│   │   ├── room.js         # Room management
-│   │   ├── roomState.js    # State machine
-│   │   ├── scoring.js      # Scoring calculations
-│   │   ├── admin.js        # Admin functions
-│   │   └── typing.js       # Typing mechanics
-│   ├── index.html          # Landing page
-│   ├── login.html          # Login page
-│   ├── join-room.html      # Join room page
-│   ├── typing.html         # Main game page
-│   ├── leaderboard.html    # Final leaderboard
-│   └── eliminated.html     # Elimination page
-├── firebase.json           # Firebase configuration
-├── FIRESTORE_RULES.txt     # Firestore security rules
-└── README.md               # This file
+│   ├── admin/           # Admin panel pages
+│   ├── css/            # Stylesheets
+│   ├── js/             # JavaScript modules
+│   ├── index.html      # Landing page
+│   ├── login.html      # Authentication
+│   ├── join-room.html  # Room joining
+│   ├── typing.html     # Main competition interface
+│   ├── leaderboard.html # Results display
+│   └── eliminated.html  # Completion/qualification page
+├── firebase.json       # Firebase configuration
+├── FIRESTORE_RULES.txt # Database security rules
+└── README.md          # This file
 ```
 
-## 🎯 How to Play
+## 🎯 Competition Flow
 
-### For Participants
+1. **Room Creation**: Admin creates room with settings
+2. **Participant Joining**: Users join with room code
+3. **Round Start**: Admin starts the single round
+4. **Typing Phase**: Participants type blindly with timer
+5. **Auto-End**: Round ends when timer expires
+6. **Results Calculation**: Automatic scoring and ranking
+7. **Qualification**: Users see if they qualified for Round 2
+8. **Leaderboard**: Final results with qualification status
 
-1. **Register/Login**: Create an account or login
-2. **Join Room**: Enter a 6-character room code
-3. **Wait**: Wait for admin to start Round 1
-4. **Type**: Type the paragraph as accurately as possible (input is hidden)
-5. **View Results**: See your score and ranking
-6. **Qualify or Eliminate**: Top performers advance to next round
-7. **Repeat**: Continue through Rounds 2 and 3
-8. **Winner**: Highest accuracy in Round 3 wins!
+## 🔐 Security Features
 
-### For Admins
+- **Input validation** on all user submissions
+- **Rate limiting** on database operations
+- **Secure Firebase rules** for data access
+- **XSS protection** with input sanitization
+- **Authentication required** for admin functions
 
-1. **Login**: Use admin credentials
-2. **Create Room**: Set up 3 rounds with paragraphs and time limits
-3. **Share Code**: Give room code to participants
-4. **Start Rounds**: Start each round when ready
-5. **Monitor**: View live statistics and leaderboards
-6. **Manage**: Control room state and view results
+## 🎨 UI/UX Features
 
-## 🔧 Configuration
+- **Dark theme** with modern glassmorphism design
+- **Responsive layout** for all device sizes
+- **Real-time animations** and smooth transitions
+- **Accessibility compliant** with proper ARIA labels
+- **Loading states** and error handling
+- **Progressive enhancement** for better performance
 
-### Admin Setup
+## 📈 Performance Optimizations
 
-1. Go to Firestore Database
-2. Create collection: `admins`
-3. Add document with field:
-   - `email`: "your-admin-email@example.com"
-4. Login with that email to get admin access
+- **Efficient Firebase queries** with proper indexing
+- **Real-time listeners** with automatic cleanup
+- **Minimal DOM manipulation** for smooth performance
+- **Lazy loading** of non-critical resources
+- **Optimized bundle size** with ES6 modules
 
-### Room Configuration
+## 🤝 Contributing
 
-Each round requires:
-- **Paragraph**: Text to type
-- **Time Limit**: Seconds (1-3600)
-- **Qualify Count**: Number of users who advance
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## 📊 Scoring System
+## 📄 License
 
-### Accuracy Calculation (Word-by-Word)
-- Each word must match EXACTLY
-- Partial words = 0 credit
-- Formula: `(Correct Words / Total Words) × 100`
-
-### WPM Calculation
-- Only correct characters from correct words count
-- Formula: `(Correct Characters / 5) / Minutes`
-
-### Leaderboard Sorting
-1. **Accuracy** (highest first)
-2. **WPM** (highest first)
-3. **Completion Time** (earliest first)
-
-## 🐛 Troubleshooting
-
-### Index Error
-If you see "The query requires an index":
-1. Click the link in the error message
-2. Create the index in Firebase Console
-3. Wait 2-5 minutes for index to build
-
-### Permission Denied
-1. Check Firestore Rules are published
-2. Verify rules match `FIRESTORE_RULES.txt`
-3. Ensure user is authenticated
-
-### Users Can't Join
-- Room locks after Round 1 starts (by design)
-- Only existing participants can rejoin
-- Check room status in admin dashboard
-
-## 🔒 Security
-
-- Firestore security rules enforce access control
-- Admin role checked server-side
-- Participant data isolated by room
-- No client-side role manipulation
-
-## 📝 License
-
-MIT License - feel free to use for your own projects!
-
-## 👨‍💻 Author
-
-**Ayush Dev**
-- GitHub: [@AyushDev29](https://github.com/AyushDev29)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- Firebase for backend infrastructure
-- Modern CSS for beautiful UI
-- Community feedback for improvements
-
-## 📞 Support
-
-For issues or questions:
-1. Check existing documentation files
-2. Review Firebase Console for errors
-3. Open an issue on GitHub
+- **MonkeyType** for scoring methodology inspiration
+- **Firebase** for real-time infrastructure
+- **Modern web standards** for responsive design
 
 ---
 
-**Built with ❤️ for competitive typing enthusiasts**
+**🔗 Live Application**: [https://blind-typing-1.firebaseapp.com/](https://blind-typing-1.firebaseapp.com/)
+
+**📧 Support**: For issues or questions, please open a GitHub issue.
