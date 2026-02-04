@@ -27,6 +27,8 @@ export function calculateScore(originalText, typedText, timeInSeconds) {
       rawWpm: 0,
       netWpm: 0,
       wpm: 0, // Net WPM (for compatibility)
+      accuracyPoints: 0,
+      speedPoints: 0,
       finalScore: 0
     };
   }
@@ -54,6 +56,8 @@ export function calculateScore(originalText, typedText, timeInSeconds) {
       rawWpm: 0,
       netWpm: 0,
       wpm: 0,
+      accuracyPoints: 0,
+      speedPoints: 0,
       finalScore: 0
     };
   }
@@ -98,8 +102,43 @@ export function calculateScore(originalText, typedText, timeInSeconds) {
   // This is the primary metric used for ranking
   const netWpm = timeInMinutes > 0 ? Math.max(0, (correctChars - incorrectChars) / 5) / timeInMinutes : 0;
   
-  // Final Score = Net WPM (this is what MonkeyType uses for ranking)
-  const finalScore = netWpm;
+  // Calculate tiered point system: 60% accuracy + 40% speed = 100 total points
+  
+  // Accuracy Points (60 max) - Tiered system
+  let accuracyPoints = 0;
+  if (accuracy >= 100) {
+    accuracyPoints = 60;
+  } else if (accuracy >= 95) {
+    accuracyPoints = 55;
+  } else if (accuracy >= 90) {
+    accuracyPoints = 50;
+  } else if (accuracy >= 80) {
+    accuracyPoints = 40;
+  } else if (accuracy >= 70) {
+    accuracyPoints = 30;
+  } else {
+    // Below 70% - scale from 0 to 20 points
+    accuracyPoints = Math.round((accuracy / 70) * 20);
+  }
+  
+  // Speed Points (40 max) - Tiered WPM system
+  let speedPoints = 0;
+  if (netWpm >= 60) {
+    speedPoints = 40;
+  } else if (netWpm >= 50) {
+    speedPoints = 35;
+  } else if (netWpm >= 40) {
+    speedPoints = 30;
+  } else if (netWpm >= 30) {
+    speedPoints = 25;
+  } else if (netWpm >= 20) {
+    speedPoints = 15;
+  } else {
+    // Below 20 WPM - scale from 0 to 10 points
+    speedPoints = Math.round((netWpm / 20) * 10);
+  }
+  
+  const finalScore = accuracyPoints + speedPoints;
   
   // Ensure all values are valid numbers
   return {
@@ -111,7 +150,9 @@ export function calculateScore(originalText, typedText, timeInSeconds) {
     rawWpm: Math.max(0, Math.round(rawWpm * 100) / 100),
     netWpm: Math.max(0, Math.round(netWpm * 100) / 100),
     wpm: Math.max(0, Math.round(netWpm * 100) / 100), // Use Net WPM as primary WPM
-    finalScore: Math.max(0, Math.round(finalScore * 100) / 100)
+    accuracyPoints: Math.max(0, accuracyPoints),
+    speedPoints: Math.max(0, speedPoints),
+    finalScore: Math.max(0, finalScore)
   };
 }
 

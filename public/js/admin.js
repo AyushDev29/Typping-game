@@ -195,6 +195,8 @@ export async function submitTypingResult(userId, roomId, roundNumber, originalTe
         score: {
           accuracy: existingData.accuracy,
           wpm: existingData.wpm,
+          accuracyPoints: existingData.accuracyPoints || 0,
+          speedPoints: existingData.speedPoints || 0,
           finalScore: existingData.finalScore
         },
         alreadySubmitted: true
@@ -222,6 +224,8 @@ export async function submitTypingResult(userId, roomId, roundNumber, originalTe
       netWpm: score.netWpm,
       rawWpm: score.rawWpm,
       accuracy: score.accuracy,
+      accuracyPoints: score.accuracyPoints,
+      speedPoints: score.speedPoints,
       finalScore: score.finalScore,
       correctChars: score.correctChars,
       incorrectChars: score.incorrectChars,

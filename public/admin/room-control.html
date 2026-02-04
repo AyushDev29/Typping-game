@@ -165,8 +165,8 @@
             </div>
             <div class="table-container">
                 <table class="leaderboard-table">
-                    <thead><tr><th>Rank</th><th>Name</th><th>WPM</th><th>Accuracy</th><th>Score</th><th>Status</th></tr></thead>
-                    <tbody id="leaderboardBody"><tr><td colspan="6" style="text-align:center;padding:40px;">No results yet</td></tr></tbody>
+                    <thead><tr><th>Rank</th><th>Name</th><th>WPM</th><th>Accuracy</th><th>Accuracy Points</th><th>Speed Points</th><th>Final Score</th><th>Status</th></tr></thead>
+                    <tbody id="leaderboardBody"><tr><td colspan="8" style="text-align:center;padding:40px;">No results yet</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -183,6 +183,7 @@
         import { getCurrentUser, logoutUser } from '../js/auth.js';
         import { getRoomData, getRoomConfig, listenToRoom, listenToParticipants } from '../js/room.js';
         import { startRound, getLeaderboard, listenToLeaderboard, deleteRoom, clearRoundResults, endRound } from '../js/admin.js';
+        import { getRoundLeaderboard } from '../js/roomState.js';
         import { db } from '../js/firebase.js';
         import { collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         
@@ -308,22 +309,37 @@
         
         async function loadLeaderboard(roundNumber) {
             console.log('[AdminLeaderboard] Loading leaderboard for round:', roundNumber);
-            const leaderboard = await getLeaderboard(roomId, roundNumber);
+            const leaderboard = await getRoundLeaderboard(roomId, roundNumber);
             console.log('[AdminLeaderboard] Received leaderboard:', leaderboard);
             
             const tbody = document.getElementById('leaderboardBody');
             if (leaderboard.length === 0) { 
                 console.log('[AdminLeaderboard] No results found');
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">No results yet</td></tr>'; 
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">No results yet</td></tr>'; 
                 return; 
             }
             const qualifyCount = roomConfig?.rounds?.r1?.qualifyCount || 3;
-            // Don't re-sort here since getLeaderboard already returns sorted data
+            // Don't re-sort here since getRoundLeaderboard already returns sorted data
             tbody.innerHTML = leaderboard.map((entry, index) => {
-                const rank = index + 1, isWinner = rank <= qualifyCount;
+                const rank = index + 1;
+                const isWinner = rank <= qualifyCount;
                 const statusBadge = isWinner ? '<span style="color:#34d399;font-weight:600;">🏆 Winner</span>' : '<span style="color:#f87171;font-weight:600;">Participant</span>';
                 const wpm = entry.netWpm || entry.wpm || 0;
-                return `<tr class="${isWinner ? 'qualified-row' : ''}"><td><strong>#${rank}</strong></td><td>${entry.name || 'Unknown'}</td><td>${wpm.toFixed(2)}</td><td>${(entry.accuracy || 0).toFixed(2)}%</td><td>${(entry.finalScore || 0).toFixed(2)}</td><td>${statusBadge}</td></tr>`;
+                const accuracy = entry.accuracy || 0;
+                const accuracyPoints = entry.accuracyPoints || 0;
+                const speedPoints = entry.speedPoints || 0;
+                const finalScore = entry.finalScore || 0;
+                
+                return `<tr class="${isWinner ? 'qualified-row' : ''}">
+                    <td><strong>#${rank}</strong></td>
+                    <td>${entry.name || 'Unknown'}</td>
+                    <td>${wpm.toFixed(2)}</td>
+                    <td>${accuracy.toFixed(2)}%</td>
+                    <td>${accuracyPoints}</td>
+                    <td>${speedPoints}</td>
+                    <td>${finalScore.toFixed(2)}</td>
+                    <td>${statusBadge}</td>
+                </tr>`;
             }).join('');
         }
         

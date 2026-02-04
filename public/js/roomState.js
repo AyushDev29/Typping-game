@@ -387,6 +387,35 @@ export function exitGame() {
  */
 export async function getRoundLeaderboard(roomId, roundNumber) {
   try {
+    // Get ALL participants in the room first
+    const participantsRef = collection(db, 'participants');
+    const participantsQuery = query(participantsRef, where('roomId', '==', roomId));
+    const participantsSnapshot = await getDocs(participantsQuery);
+    
+    if (participantsSnapshot.empty) {
+      return [];
+    }
+    
+    // Create participants map with all participants
+    const allParticipants = {};
+    participantsSnapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      allParticipants[docSnap.id] = {
+        userId: docSnap.id,
+        name: data.name || 'Unknown',
+        status: data.status || 'active',
+        isQualified: data.isQualified || false,
+        finalRank: data.finalRank || null,
+        // Default values for participants without results
+        wpm: 0,
+        accuracy: 0,
+        accuracyPoints: 0,
+        speedPoints: 0,
+        finalScore: 0,
+        submittedAt: null
+      };
+    });
+    
     // Get results for this specific round
     const resultsRef = collection(db, 'results');
     const q = query(
@@ -396,49 +425,88 @@ export async function getRoundLeaderboard(roomId, roundNumber) {
     );
     const snapshot = await getDocs(q);
     
-    let results = [];
+    // Update participants with their actual results
     snapshot.forEach(docSnap => {
-      results.push({ id: docSnap.id, ...docSnap.data() });
+      const result = docSnap.data();
+      if (allParticipants[result.userId]) {
+        // If accuracyPoints and speedPoints don't exist, calculate them from existing data
+        let accuracyPoints = result.accuracyPoints || 0;
+        let speedPoints = result.speedPoints || 0;
+        let finalScore = result.finalScore || 0;
+        
+        // Recalculate points if they're missing (for backward compatibility)
+        if (accuracyPoints === 0 && speedPoints === 0 && (result.accuracy > 0 || result.wpm > 0)) {
+          const accuracy = result.accuracy || 0;
+          const wpm = result.netWpm || result.wpm || 0;
+          
+          // Calculate tiered accuracy points
+          if (accuracy >= 100) {
+            accuracyPoints = 60;
+          } else if (accuracy >= 95) {
+            accuracyPoints = 55;
+          } else if (accuracy >= 90) {
+            accuracyPoints = 50;
+          } else if (accuracy >= 80) {
+            accuracyPoints = 40;
+          } else if (accuracy >= 70) {
+            accuracyPoints = 30;
+          } else {
+            accuracyPoints = Math.round((accuracy / 70) * 20);
+          }
+          
+          // Calculate tiered speed points
+          if (wpm >= 60) {
+            speedPoints = 40;
+          } else if (wpm >= 50) {
+            speedPoints = 35;
+          } else if (wpm >= 40) {
+            speedPoints = 30;
+          } else if (wpm >= 30) {
+            speedPoints = 25;
+          } else if (wpm >= 20) {
+            speedPoints = 15;
+          } else {
+            speedPoints = Math.round((wpm / 20) * 10);
+          }
+          
+          finalScore = accuracyPoints + speedPoints;
+        }
+        
+        allParticipants[result.userId] = {
+          ...allParticipants[result.userId],
+          ...result,
+          accuracyPoints: accuracyPoints,
+          speedPoints: speedPoints,
+          finalScore: finalScore,
+          name: result.userName || allParticipants[result.userId].name
+        };
+      }
     });
     
-    // CRITICAL: Sort by MonkeyType methodology - Net WPM first, then accuracy, then submission time
+    // Convert to array and sort by Final Score (highest first), then accuracy, then WPM, then submission time
+    let results = Object.values(allParticipants);
+    
     results.sort((a, b) => {
-      // 1. Higher Net WPM wins (primary ranking metric)
-      const wpmA = a.netWpm || a.wpm || 0;
-      const wpmB = b.netWpm || b.wpm || 0;
-      if (Math.abs(wpmA - wpmB) > 0.01) {
-        return wpmB - wpmA;
+      if (Math.abs((a.finalScore || 0) - (b.finalScore || 0)) > 0.01) {
+        return (b.finalScore || 0) - (a.finalScore || 0);
       }
       
-      // 2. If WPM is same, higher accuracy wins
       if (Math.abs((a.accuracy || 0) - (b.accuracy || 0)) > 0.01) {
         return (b.accuracy || 0) - (a.accuracy || 0);
       }
       
-      // 3. If both are same, earlier submission wins
-      const timeA = a.submittedAt?.toMillis ? a.submittedAt.toMillis() : 0;
-      const timeB = b.submittedAt?.toMillis ? b.submittedAt.toMillis() : 0;
-      return timeA - timeB; // Earlier time = lower number = wins
+      if (Math.abs((a.wpm || 0) - (b.wpm || 0)) > 0.01) {
+        return (b.wpm || 0) - (a.wpm || 0);
+      }
+      
+      const timeA = a.submittedAt?.toMillis ? a.submittedAt.toMillis() : Number.MAX_SAFE_INTEGER;
+      const timeB = b.submittedAt?.toMillis ? b.submittedAt.toMillis() : Number.MAX_SAFE_INTEGER;
+      return timeA - timeB;
     });
     
-    // Get participant names
-    const participantsRef = collection(db, 'participants');
-    const participantsQuery = query(participantsRef, where('roomId', '==', roomId));
-    const participantsSnapshot = await getDocs(participantsQuery);
-    
-    const nameMap = {};
-    participantsSnapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      nameMap[docSnap.id] = data.name || 'Unknown';
-    });
-    
-    // Add names to results
-    return results.map(result => ({
-      ...result,
-      name: result.userName || nameMap[result.userId] || 'Unknown'
-    }));
+    return results;
   } catch (error) {
-    console.error('[RoomState] getRoundLeaderboard error:', error);
+    console.error('getRoundLeaderboard error:', error);
     return [];
   }
 }

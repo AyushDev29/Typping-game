@@ -651,10 +651,10 @@
                 <div class="leaderboard-container">
                     <table class="leaderboard-table">
                         <thead>
-                            <tr><th>Rank</th><th>Name</th><th>WPM</th><th>Accuracy</th><th>Score</th><th>Status</th></tr>
+                            <tr><th>Rank</th><th>Name</th><th>WPM</th><th>Accuracy</th><th>Accuracy Points</th><th>Speed Points</th><th>Final Score</th><th>Status</th></tr>
                         </thead>
                         <tbody id="leaderboardBody">
-                            <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                            <tr><td colspan="8" class="text-center">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -896,10 +896,18 @@
         async function loadLeaderboard(roundNumber) {
             const leaderboard = await getRoundLeaderboard(roomId, roundNumber);
             const tbody = document.getElementById('leaderboardBody');
-            if (leaderboard.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="text-center">No results yet</td></tr>'; return; }
+            if (leaderboard.length === 0) { 
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center">No results yet</td></tr>'; 
+                return; 
+            }
             
             let userRank = -1, userQualified = false;
-            leaderboard.forEach((entry, i) => { if (entry.userId === user.uid) { userRank = i + 1; userQualified = i < qualifyCount; } });
+            leaderboard.forEach((entry, i) => { 
+                if (entry.userId === user.uid) { 
+                    userRank = i + 1; 
+                    userQualified = i < qualifyCount; 
+                } 
+            });
             
             const banner = document.getElementById('yourStatusBanner');
             if (userRank > 0) {
@@ -912,17 +920,44 @@
                     banner.className = 'your-status-banner status-eliminated';
                     document.getElementById('yourStatusText').textContent = '😔 You Did Not Qualify';
                 }
-            } else { banner.style.display = 'none'; }
+            } else { 
+                banner.style.display = 'none'; 
+            }
             
             let html = '';
             leaderboard.forEach((entry, i) => {
-                const rank = i + 1, isMe = entry.userId === user.uid, isQualified = rank <= qualifyCount;
-                const isCutoff = rank === qualifyCount, isWinner = roundNumber === 3 && rank === 1;
+                const rank = i + 1;
+                const isMe = entry.userId === user.uid;
+                const isQualified = rank <= qualifyCount;
+                const isCutoff = rank === qualifyCount;
+                const isWinner = roundNumber === 3 && rank === 1;
+                
                 let rowClass = (isMe ? 'current-user ' : '') + (isQualified ? 'qualified-row' : 'eliminated-row') + (isCutoff ? ' cutoff-line' : '');
-                let badge = isWinner ? '<span class="qualification-badge badge-winner">🏆 Winner</span>' : isQualified ? '<span class="qualification-badge badge-qualified">Qualified</span>' : '<span class="qualification-badge badge-eliminated">Eliminated</span>';
+                let badge = isWinner ? '<span class="qualification-badge badge-winner">🏆 Winner</span>' : 
+                           isQualified ? '<span class="qualification-badge badge-qualified">Qualified</span>' : 
+                           '<span class="qualification-badge badge-eliminated">Eliminated</span>';
+                
                 const name = isMe ? `<strong>👤 ${entry.name || 'Unknown'} (You)</strong>` : (entry.name || 'Unknown');
-                html += `<tr class="${rowClass}"><td><strong>#${rank}</strong></td><td>${name}</td><td>${Math.round(entry.wpm || 0)}</td><td>${Math.round(entry.accuracy || 0)}%</td><td>${(entry.finalScore || 0).toFixed(2)}</td><td>${badge}</td></tr>`;
-                if (isCutoff && rank < leaderboard.length) html += `<tr><td colspan="6" class="cutoff-label">↑ Qualified | Eliminated ↓</td></tr>`;
+                const wpm = Math.round(entry.wpm || 0);
+                const accuracy = Math.round(entry.accuracy || 0);
+                const accuracyPoints = entry.accuracyPoints || 0;
+                const speedPoints = entry.speedPoints || 0;
+                const finalScore = (entry.finalScore || 0).toFixed(2);
+                
+                html += `<tr class="${rowClass}">
+                    <td><strong>#${rank}</strong></td>
+                    <td>${name}</td>
+                    <td>${wpm}</td>
+                    <td>${accuracy}%</td>
+                    <td>${accuracyPoints}</td>
+                    <td>${speedPoints}</td>
+                    <td>${finalScore}</td>
+                    <td>${badge}</td>
+                </tr>`;
+                
+                if (isCutoff && rank < leaderboard.length) {
+                    html += `<tr><td colspan="8" class="cutoff-label">↑ Qualified | Eliminated ↓</td></tr>`;
+                }
             });
             tbody.innerHTML = html;
         }
