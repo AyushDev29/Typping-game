@@ -210,7 +210,14 @@ export function getTypedText() {
  * @returns {number} - Time in seconds
  */
 export function getElapsedTime() {
-  if (!startTime) return 0;
+  if (!startTime) {
+    // Fallback: if startTime is missing but user typed something, estimate reasonable time
+    if (typedText.length > 0) {
+      // Estimate ~3 characters per second (20 WPM baseline)
+      return Math.max(1, typedText.length / 3);
+    }
+    return 0;
+  }
   return (Date.now() - startTime) / 1000;
 }
 

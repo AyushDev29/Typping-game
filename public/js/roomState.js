@@ -408,6 +408,8 @@ export async function getRoundLeaderboard(roomId, roundNumber) {
         finalRank: data.finalRank || null,
         // Default values for participants without results
         wpm: 0,
+        netWpm: 0,
+        rawWpm: 0,
         accuracy: 0,
         accuracyPoints: 0,
         speedPoints: 0,

@@ -686,7 +686,7 @@
     <script type="module">
         import { getCurrentUser, logoutUser, exitGame } from './js/auth.js';
         import { getRoomConfig } from './js/room.js';
-        import { initBlindTyping, getTypedText, stopTyping, resetTyping } from './js/typing.js';
+        import { initBlindTyping, getTypedText, stopTyping, resetTyping, getElapsedTime } from './js/typing.js';
         import { formatTime } from './js/scoring.js';
         import { submitTypingResult } from './js/admin.js';
         import { db } from './js/firebase.js';
@@ -834,13 +834,18 @@
             if (hasSubmitted) return;
             hasSubmitted = true;
             clearInterval(timerInterval);
-            stopTyping();
+            
+            // CRITICAL: Capture elapsed time BEFORE stopTyping() to prevent global state corruption
+            const actualTypingTime = getElapsedTime(); // Get time before any cleanup
             const typedText = getTypedText();
-            const elapsed = Math.floor((Date.now() - roundStartTime) / 1000);
+            
+            stopTyping(); // Now safe to cleanup
+            
             const roundData = roomConfig.rounds.r1;
             
             console.log('[TypingGame] Submitting result for user:', user.uid);
-            const result = await submitTypingResult(user.uid, roomId, roundNumber, roundData.paragraph, typedText, Math.min(elapsed, roundDuration));
+            console.log('[TypingGame] Actual typing time:', actualTypingTime, 'seconds');
+            const result = await submitTypingResult(user.uid, roomId, roundNumber, roundData.paragraph, typedText, actualTypingTime);
             if (result.success) {
                 savedScore = result.score;
                 localStorage.setItem(getKey('score', roundNumber), JSON.stringify(result.score));
