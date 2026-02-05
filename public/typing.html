@@ -667,7 +667,7 @@
         
         <div id="completedScreen" class="screen">
             <div class="completed-card">
-                <h1>🏆 Competition Complete!</h1>
+                <h1>🏆 Round 1 Complete!</h1>
                 <p class="subtitle">Thank you for participating!</p>
                 <div id="finalResultMessage"></div>
                 <div class="button-group">
@@ -835,16 +835,29 @@
             hasSubmitted = true;
             clearInterval(timerInterval);
             
-            // CRITICAL: Capture elapsed time BEFORE stopTyping() to prevent global state corruption
-            const actualTypingTime = getElapsedTime(); // Get time before any cleanup
+            // SIMPLE FIX: Use existing getElapsedTime() function
             const typedText = getTypedText();
+            const typedLength = typedText.length;
+            
+            // Use the existing getElapsedTime function which already has fallback logic
+            let actualTypingTime = getElapsedTime();
+            
+            // Ensure minimum time to prevent infinite WPM
+            if (actualTypingTime <= 0 && typedLength > 0) {
+                // If somehow time is 0 but user typed, estimate based on characters
+                actualTypingTime = Math.max(1, typedLength / 3); // 3 chars/sec = 36 WPM baseline
+            } else if (actualTypingTime <= 0) {
+                actualTypingTime = 1; // Default minimum
+            }
             
             stopTyping(); // Now safe to cleanup
             
             const roundData = roomConfig.rounds.r1;
             
             console.log('[TypingGame] Submitting result for user:', user.uid);
+            console.log('[TypingGame] Typed characters:', typedLength);
             console.log('[TypingGame] Actual typing time:', actualTypingTime, 'seconds');
+            
             const result = await submitTypingResult(user.uid, roomId, roundNumber, roundData.paragraph, typedText, actualTypingTime);
             if (result.success) {
                 savedScore = result.score;

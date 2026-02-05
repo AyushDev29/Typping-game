@@ -102,6 +102,9 @@ export function calculateScore(originalText, typedText, timeInSeconds) {
   // This is the primary metric used for ranking
   const netWpm = timeInMinutes > 0 ? Math.max(0, (correctChars - incorrectChars) / 5) / timeInMinutes : 0;
   
+  // FIXED: Use Raw WPM with minimum floor to prevent WPM = 0 when user typed anything
+  const wpm = totalCharsTyped > 0 ? Math.max(1, rawWpm) : 0;
+  
   // Calculate tiered point system: 60% accuracy + 40% speed = 100 total points
   
   // Accuracy Points (60 max) - Tiered system
@@ -122,20 +125,21 @@ export function calculateScore(originalText, typedText, timeInSeconds) {
   }
   
   // Speed Points (40 max) - Tiered WPM system
+  // FIXED: Use the new wpm (Raw WPM) instead of netWpm for speed points
   let speedPoints = 0;
-  if (netWpm >= 60) {
+  if (wpm >= 60) {
     speedPoints = 40;
-  } else if (netWpm >= 50) {
+  } else if (wpm >= 50) {
     speedPoints = 35;
-  } else if (netWpm >= 40) {
+  } else if (wpm >= 40) {
     speedPoints = 30;
-  } else if (netWpm >= 30) {
+  } else if (wpm >= 30) {
     speedPoints = 25;
-  } else if (netWpm >= 20) {
+  } else if (wpm >= 20) {
     speedPoints = 15;
   } else {
     // Below 20 WPM - scale from 0 to 10 points
-    speedPoints = Math.round((netWpm / 20) * 10);
+    speedPoints = Math.round((wpm / 20) * 10);
   }
   
   const finalScore = accuracyPoints + speedPoints;
@@ -149,7 +153,7 @@ export function calculateScore(originalText, typedText, timeInSeconds) {
     accuracy: Math.max(0, Math.min(100, Math.round(accuracy * 100) / 100)),
     rawWpm: Math.max(0, Math.round(rawWpm * 100) / 100),
     netWpm: Math.max(0, Math.round(netWpm * 100) / 100),
-    wpm: Math.max(0, Math.round(netWpm * 100) / 100), // Use Net WPM as primary WPM
+    wpm: Math.max(0, Math.round(wpm * 100) / 100), // FIXED: Use Raw WPM (never 0 if typed)
     accuracyPoints: Math.max(0, accuracyPoints),
     speedPoints: Math.max(0, speedPoints),
     finalScore: Math.max(0, finalScore)

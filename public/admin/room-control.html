@@ -160,6 +160,7 @@
             <div class="section-header">
                 <h2 class="section-title"><div class="section-icon">📊</div>Leaderboard</h2>
                 <div class="leaderboard-controls">
+                    <button class="btn btn-primary" onclick="exportToExcel()" style="width:auto;padding:10px 16px;background:var(--success);">📥 Export Excel</button>
                     <button class="btn btn-danger" onclick="handleClearRound()" style="width:auto;padding:10px 16px;">🗑️ Clear</button>
                 </div>
             </div>
@@ -185,7 +186,7 @@
         import { startRound, getLeaderboard, listenToLeaderboard, deleteRoom, clearRoundResults, endRound } from '../js/admin.js';
         import { getRoundLeaderboard } from '../js/roomState.js';
         import { db } from '../js/firebase.js';
-        import { collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { collection, query, where, onSnapshot, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         
         const user = getCurrentUser();
         if (!user) { window.location.href = '../login.html'; }
@@ -275,6 +276,55 @@
             btn.disabled = true; btn.textContent = 'Starting...';
             const result = await startRound(roomId, roundNumber);
             if (!result.success) { alert('Failed: ' + result.error); btn.disabled = false; btn.textContent = `Start Round`; }
+        };
+        
+        // Excel Export Function
+        window.exportToExcel = async function() {
+            try {
+                const leaderboard = await getRoundLeaderboard(roomId, 1);
+                if (leaderboard.length === 0) {
+                    alert('No data to export');
+                    return;
+                }
+                
+                // Get room info for filename
+                const roomDoc = await getDoc(doc(db, 'rooms', roomId));
+                const roomName = roomDoc.exists() ? roomDoc.data().name : 'Room';
+                
+                // Create CSV content
+                let csv = 'Rank,Name,WPM,Accuracy (%),Accuracy Points,Speed Points,Final Score,Status\n';
+                
+                leaderboard.forEach((entry, index) => {
+                    const rank = index + 1;
+                    const name = entry.name || 'Unknown';
+                    const wpm = Math.round(entry.wpm || 0);
+                    const accuracy = Math.round(entry.accuracy || 0);
+                    const accuracyPoints = entry.accuracyPoints || 0;
+                    const speedPoints = entry.speedPoints || 0;
+                    const finalScore = (entry.finalScore || 0).toFixed(2);
+                    const status = rank <= 3 ? 'Qualified' : 'Eliminated';
+                    
+                    csv += `${rank},"${name}",${wpm},${accuracy},${accuracyPoints},${speedPoints},${finalScore},${status}\n`;
+                });
+                
+                // Create download link
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                const timestamp = new Date().toISOString().split('T')[0];
+                
+                link.setAttribute('href', url);
+                link.setAttribute('download', `${roomName}_Results_${timestamp}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                alert('✅ Excel file downloaded successfully!');
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Failed to export: ' + error.message);
+            }
         };
         
         window.handleClearRound = async function() {

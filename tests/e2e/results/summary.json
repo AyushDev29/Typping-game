@@ -1,0 +1,27 @@
+[
+  {
+    "user": "a@gmail.com",
+    "status": "Failed",
+    "details": "page.waitForSelector: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#resultScreen.active') to be visible\u001b[22m\n"
+  },
+  {
+    "user": "ayush@gmail.com",
+    "status": "Failed",
+    "details": "page.waitForSelector: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#resultScreen.active') to be visible\u001b[22m\n"
+  },
+  {
+    "user": "test@test.com",
+    "status": "Failed",
+    "details": "page.waitForSelector: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#resultScreen.active') to be visible\u001b[22m\n"
+  },
+  {
+    "user": "test2@test.com",
+    "status": "Failed",
+    "details": "page.waitForSelector: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#resultScreen.active') to be visible\u001b[22m\n"
+  },
+  {
+    "user": "newtesting@gmail.com",
+    "status": "Failed",
+    "details": "page.waitForSelector: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#resultScreen.active') to be visible\u001b[22m\n"
+  }
+]
