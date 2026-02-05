@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - users can read all, create/update their own
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null;
+    }
+    
+    // Admins collection - read only for authenticated users
+    match /admins/{adminId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only manually add admins through Firebase Console
+    }
+    
+    // Rooms - admins can create, all authenticated users can read and update
+    match /rooms/{roomId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+    
+    // Room config - admins can write, all authenticated users can read
+    match /roomConfig/{roomId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+    
+    // Participants - users can read/write their own, admins can read all
+    // Fields: name, roomId, status, currentRound, isEliminated, eliminatedInRound, isQualified, isWinnerEligible
+    match /participants/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+    
+    // Results - stored per round, not combined
+    // Fields: userId, roomId, round, userName, wpm, accuracy, finalScore, submittedAt
+    match /results/{resultId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if false; // Results are immutable
+      allow delete: if request.auth != null;
+    }
+  }
+}
